@@ -188,4 +188,55 @@ export interface ActiveAlertLog {
   details: string;
   actionTaken: string;
   isResolved: boolean;
+  dispatchedToStationId?: string;
+  dispatchId?: string;
+}
+
+export interface PoliceStation {
+  id: string;
+  name: string;
+  callsign: string;
+  jurisdiction: string;
+  address: string;
+  lat: number;
+  lng: number;
+  radioFrequency: string;
+  cadTerminalCode: string;
+  status: 'ONLINE_DISPATCH_READY' | 'UNITS_ENGAGED' | 'STANDBY' | 'CODE_RED_ALERT';
+  availableUnits: number;
+  unitTypes: string[];
+  telephoneEmergency: string;
+  directTetraChannel: string;
+  distanceMeters?: number;
+  etaMinutes?: number;
+}
+
+export type DispatchPriority = 'PRIORITY_1_CODE_RED' | 'PRIORITY_2_TACTICAL_INTERCEPT' | 'PRIORITY_3_ALERT_BOLO';
+export type DispatchChannel = 'TETRA_C2000_POLICE_NET' | 'CAD_DIRECT_TERMINAL_112' | 'EUROPOL_HIGH_THREAT_WAN' | 'MARECHAUSSEE_TACTICAL_ENCRYPTED';
+
+export interface ThreatDispatchPacket {
+  dispatchId: string;
+  targetStationId: string;
+  targetStationName: string;
+  targetStationCallsign: string;
+  channel: DispatchChannel;
+  priority: DispatchPriority;
+  subjectId: string;
+  subjectName: string;
+  subjectAlias: string;
+  subjectDid: string;
+  nationalId: string;
+  threatLevel: ThreatLevel;
+  incidentLocation: LocationCoordinate;
+  biometricMatchScore: number;
+  cctvSector: string;
+  tacticalRadioTranscript: string;
+  containmentDirectives: string[];
+  authorizedOfficerDid: string;
+  timestamp: string;
+  status: 'TRANSMITTING' | 'ACKNOWLEDGED_BY_PRECINCT' | 'UNITS_DISPATCHED' | 'CORDON_ESTABLISHED';
+  acknowledgedByOfficerCallsign?: string;
+  sha256Seal: string;
+  estimatedResponseTimeSeconds: number;
+  assignedPatrolUnits: string[];
 }

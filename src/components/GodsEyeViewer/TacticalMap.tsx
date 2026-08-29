@@ -3,7 +3,9 @@ import {
   TrackedSubject,
   SurveillanceNode,
   CCTVCameraFeed,
+  PoliceStation,
 } from '../../types';
+import { POLICE_STATIONS } from '../../lib/mockData';
 import {
   Crosshair,
   Radio,
@@ -18,6 +20,9 @@ import {
   CreditCard,
   Train,
   CheckCircle2,
+  Car,
+  PhoneCall,
+  Flame,
 } from 'lucide-react';
 import { soundFx } from '../../lib/audio';
 
@@ -28,6 +33,8 @@ interface TacticalMapProps {
   selectedSubject: TrackedSubject | null;
   onSelectSubject: (subject: TrackedSubject) => void;
   isLockdownActive: boolean;
+  policeStations?: PoliceStation[];
+  onDispatchToPolice?: (subject: TrackedSubject) => void;
 }
 
 export const TacticalMap: React.FC<TacticalMapProps> = ({
@@ -37,12 +44,15 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
   selectedSubject,
   onSelectSubject,
   isLockdownActive,
+  policeStations = POLICE_STATIONS,
+  onDispatchToPolice,
 }) => {
   const [zoomLevel, setZoomLevel] = useState<number>(1.2);
   const [showGeofences, setShowGeofences] = useState<boolean>(true);
   const [showTrails, setShowTrails] = useState<boolean>(true);
   const [showNodes, setShowNodes] = useState<boolean>(true);
   const [showCameras, setShowCameras] = useState<boolean>(true);
+  const [showPolice, setShowPolice] = useState<boolean>(true);
   const [radarAngle, setRadarAngle] = useState<number>(0);
 
   // Center coordinate around Amsterdam core (52.3702° N, 4.8952° E)
@@ -126,6 +136,16 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
             title="Toggle CCTV Towers"
           >
             CCTV
+          </button>
+          <button
+            onClick={() => setShowPolice(!showPolice)}
+            className={`px-2 py-1 rounded text-[11px] font-mono transition-colors cursor-pointer flex items-center gap-1 ${
+              showPolice ? 'bg-blue-950 text-blue-300 border border-blue-600' : 'text-slate-400 hover:text-slate-200'
+            }`}
+            title="Toggle Police Stations & Patrol Response Units"
+          >
+            <Car className="w-3 h-3" />
+            <span>Police</span>
           </button>
 
           <div className="w-px h-4 bg-slate-800 mx-1" />
@@ -372,6 +392,138 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
                 </g>
               );
             })}
+
+          {/* Police Stations & Rapid Intercept Precincts */}
+          {showPolice &&
+            policeStations.map((station) => {
+              const { x, y } = projectCoord(station.lat, station.lng);
+              const isAlert = station.status === 'CODE_RED_ALERT';
+
+              return (
+                <g key={station.id} transform={`translate(${x}, ${y})`}>
+                  {/* Outer Radar Dispatch Ring */}
+                  <circle
+                    r="20"
+                    fill="rgba(59, 130, 246, 0.12)"
+                    stroke="#3b82f6"
+                    strokeWidth="1.2"
+                    strokeDasharray="4,2"
+                    className={isAlert ? 'animate-spin-slow' : ''}
+                  />
+
+                  {/* Pulsing Alert Ring if Code Red */}
+                  {isAlert && (
+                    <circle
+                      r="26"
+                      fill="none"
+                      stroke="#ef4444"
+                      strokeWidth="1.5"
+                      className="animate-ping opacity-50"
+                    />
+                  )}
+
+                  {/* Police Badge Emblem */}
+                  <rect
+                    x="-10"
+                    y="-10"
+                    width="20"
+                    height="20"
+                    rx="4"
+                    fill="#1e3a8a"
+                    stroke={isAlert ? '#ef4444' : '#60a5fa'}
+                    strokeWidth="1.8"
+                  />
+
+                  {/* Blue LED Center */}
+                  <circle cx="0" cy="0" r="3" fill="#93c5fd" />
+
+                  {/* Station Callout HUD */}
+                  <g transform="translate(14, -10)">
+                    <rect
+                      width="150"
+                      height="28"
+                      rx="4"
+                      fill="rgba(15, 23, 42, 0.95)"
+                      stroke="#3b82f6"
+                      strokeWidth="1"
+                    />
+                    <text
+                      x="6"
+                      y="12"
+                      fill="#93c5fd"
+                      fontSize="9"
+                      fontFamily="monospace"
+                      fontWeight="bold"
+                    >
+                      {station.callsign}
+                    </text>
+                    <text
+                      x="6"
+                      y="22"
+                      fill="#cbd5e1"
+                      fontSize="8"
+                      fontFamily="monospace"
+                    >
+                      {station.availableUnits} UNITS | CAD ONLINE
+                    </text>
+                  </g>
+                </g>
+              );
+            })}
+
+          {/* Intercept Vector from Closest Police Station to Selected Subject */}
+          {selectedSubject && showPolice && policeStations.length > 0 && (() => {
+            const subCoord = projectCoord(selectedSubject.currentLocation.lat, selectedSubject.currentLocation.lng);
+            // find nearest station
+            const nearest = policeStations.reduce((closest, current) => {
+              const d1 = Math.hypot(selectedSubject.currentLocation.lat - closest.lat, selectedSubject.currentLocation.lng - closest.lng);
+              const d2 = Math.hypot(selectedSubject.currentLocation.lat - current.lat, selectedSubject.currentLocation.lng - current.lng);
+              return d2 < d1 ? current : closest;
+            }, policeStations[0]);
+
+            const stCoord = projectCoord(nearest.lat, nearest.lng);
+            const midX = (subCoord.x + stCoord.x) / 2;
+            const midY = (subCoord.y + stCoord.y) / 2;
+
+            return (
+              <g key="intercept-vector">
+                {/* Dashed intercept vector */}
+                <line
+                  x1={stCoord.x}
+                  y1={stCoord.y}
+                  x2={subCoord.x}
+                  y2={subCoord.y}
+                  stroke="#ef4444"
+                  strokeWidth="2"
+                  strokeDasharray="6,4"
+                  className="animate-pulse"
+                />
+
+                {/* Tactical Intercept HUD Pill */}
+                <g transform={`translate(${midX - 55}, ${midY - 10})`}>
+                  <rect
+                    width="110"
+                    height="20"
+                    rx="10"
+                    fill="rgba(153, 27, 27, 0.9)"
+                    stroke="#f87171"
+                    strokeWidth="1"
+                  />
+                  <text
+                    x="55"
+                    y="13"
+                    textAnchor="middle"
+                    fill="#ffffff"
+                    fontSize="9"
+                    fontFamily="monospace"
+                    fontWeight="bold"
+                  >
+                    POLICE INTERCEPT VECTOR
+                  </text>
+                </g>
+              </g>
+            );
+          })()}
 
           {/* Tracked Subjects Pins (Real-Time Targets) */}
           {subjects.map((sub) => {

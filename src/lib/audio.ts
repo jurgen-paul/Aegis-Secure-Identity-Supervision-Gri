@@ -151,6 +151,83 @@ class TacticalSoundEngine {
     osc.start(now);
     osc.stop(now + 0.04);
   }
+
+  // Tactical TETRA Radio Chirp / PTT burst
+  public playRadioChirp() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    // Two-tone burst (1560Hz -> 2080Hz)
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1560, now);
+    osc.frequency.setValueAtTime(2080, now + 0.05);
+
+    gain.gain.setValueAtTime(0.09, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.12);
+  }
+
+  // Emergency Police Alert Siren (tactical high-low)
+  public playPoliceSiren() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(750, now);
+    osc.frequency.linearRampToValueAtTime(1100, now + 0.2);
+    osc.frequency.linearRampToValueAtTime(750, now + 0.4);
+    osc.frequency.linearRampToValueAtTime(1100, now + 0.6);
+
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.7);
+  }
+
+  // CAD Dispatch Transmission Confirmed
+  public playDispatchSent() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const freqs = [880, 1174.66, 1760]; // A5, D6, A6
+    freqs.forEach((f, idx) => {
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(f, now + idx * 0.07);
+
+      gain.gain.setValueAtTime(0.1, now + idx * 0.07);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.18);
+
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+
+      osc.start(now + idx * 0.07);
+      osc.stop(now + idx * 0.07 + 0.18);
+    });
+  }
 }
 
 export const soundFx = new TacticalSoundEngine();

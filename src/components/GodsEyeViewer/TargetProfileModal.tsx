@@ -19,6 +19,9 @@ import {
   Share2,
   Eye,
   KeyRound,
+  Car,
+  Send,
+  PhoneCall,
 } from 'lucide-react';
 import { soundFx } from '../../lib/audio';
 
@@ -28,6 +31,7 @@ interface TargetProfileModalProps {
   onDispatchContainment: (subject: TrackedSubject) => void;
   onExportToDocs: (subject: TrackedSubject) => void;
   onRequestAIAssessment: (subject: TrackedSubject) => void;
+  onDispatchToPolice?: (subject: TrackedSubject) => void;
 }
 
 export const TargetProfileModal: React.FC<TargetProfileModalProps> = ({
@@ -36,6 +40,7 @@ export const TargetProfileModal: React.FC<TargetProfileModalProps> = ({
   onDispatchContainment,
   onExportToDocs,
   onRequestAIAssessment,
+  onDispatchToPolice,
 }) => {
   const [activeTab, setActiveTab] = useState<'biometrics' | 'financial' | 'transit' | 'sovereign'>('biometrics');
 
@@ -96,6 +101,19 @@ export const TargetProfileModal: React.FC<TargetProfileModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {onDispatchToPolice && (
+              <button
+                onClick={() => {
+                  soundFx.playPoliceSiren();
+                  onDispatchToPolice(subject);
+                }}
+                className="px-3 py-1.5 rounded bg-red-600 border border-red-400 text-white hover:bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)] transition-all flex items-center gap-1.5 cursor-pointer text-xs font-bold animate-pulse"
+              >
+                <PhoneCall className="w-3.5 h-3.5" />
+                <span>Send to Police Station</span>
+              </button>
+            )}
+
             <button
               onClick={() => {
                 soundFx.playClick();

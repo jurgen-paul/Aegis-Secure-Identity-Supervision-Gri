@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActiveAlertLog, TrackedSubject } from '../../types';
-import { AlertTriangle, ShieldAlert, CheckCircle2, MapPin, Zap, Lock } from 'lucide-react';
+import { AlertTriangle, ShieldAlert, CheckCircle2, MapPin, Zap, Lock, Send, Car, Radio } from 'lucide-react';
 import { soundFx } from '../../lib/audio';
 
 interface ActiveAlertsPanelProps {
@@ -8,6 +8,7 @@ interface ActiveAlertsPanelProps {
   subjects: TrackedSubject[];
   onSelectSubject: (subject: TrackedSubject) => void;
   onResolveAlert: (alertId: string) => void;
+  onDispatchAlert?: (subject: TrackedSubject, alert: ActiveAlertLog) => void;
 }
 
 export const ActiveAlertsPanel: React.FC<ActiveAlertsPanelProps> = ({
@@ -15,6 +16,7 @@ export const ActiveAlertsPanel: React.FC<ActiveAlertsPanelProps> = ({
   subjects,
   onSelectSubject,
   onResolveAlert,
+  onDispatchAlert,
 }) => {
   const unresolvedAlerts = alerts.filter((a) => !a.isResolved);
 
@@ -72,6 +74,19 @@ export const ActiveAlertsPanel: React.FC<ActiveAlertsPanelProps> = ({
                   </div>
 
                   <div className="flex flex-col gap-1.5 shrink-0">
+                    {sub && onDispatchAlert && (
+                      <button
+                        onClick={() => {
+                          soundFx.playRadioChirp();
+                          onDispatchAlert(sub, alt);
+                        }}
+                        className="px-2.5 py-1.5 rounded bg-red-600 border border-red-400 text-white hover:bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.4)] transition-all text-[11px] font-bold cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Car className="w-3.5 h-3.5" />
+                        <span>Dispatch Police</span>
+                      </button>
+                    )}
+
                     {sub && (
                       <button
                         onClick={() => {
