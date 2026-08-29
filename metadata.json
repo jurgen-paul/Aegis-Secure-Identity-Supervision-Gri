@@ -1,0 +1,6 @@
+{
+  "name": "Aegis Secure Identity & Supervision Grid",
+  "description": "Decentralized identity management with end-to-end encryption, verifiable audit trails, real-time node tracking, and supervision viewer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
