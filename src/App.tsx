@@ -8,6 +8,8 @@ import {
   VerifiableCredential,
   AutomatedAlertRule,
   ActiveAlertLog,
+  ThreatDispatchPacket,
+  MostWantedFugitive,
 } from './types';
 import {
   INITIAL_TRACKED_SUBJECTS,
@@ -18,6 +20,9 @@ import {
   INITIAL_CREDENTIALS,
   INITIAL_ALERT_RULES,
   INITIAL_ACTIVE_ALERTS,
+  POLICE_STATIONS,
+  INITIAL_DISPATCH_HISTORY,
+  MOST_WANTED_LIST,
 } from './lib/mockData';
 import { Header } from './components/Header';
 import { Navigation, ActiveTab } from './components/Navigation';
@@ -26,6 +31,8 @@ import { TargetProfileModal } from './components/GodsEyeViewer/TargetProfileModa
 import { RealTimeSurveillanceFeed } from './components/GodsEyeViewer/RealTimeSurveillanceFeed';
 import { FinancialTransitStream } from './components/GodsEyeViewer/FinancialTransitStream';
 import { ActiveAlertsPanel } from './components/GodsEyeViewer/ActiveAlertsPanel';
+import { EmergencyDispatchModal } from './components/Dispatch/EmergencyDispatchModal';
+import { MostWantedList } from './components/MostWanted/MostWantedList';
 import { DIDKeyring } from './components/DecentralizedIdentity/DIDKeyring';
 import { VerifiableCredentials } from './components/DecentralizedIdentity/VerifiableCredentials';
 import { ZKPVerifier } from './components/DecentralizedIdentity/ZKPVerifier';
@@ -52,10 +59,121 @@ export default function App() {
   const [credentials, setCredentials] = useState<VerifiableCredential[]>(INITIAL_CREDENTIALS);
   const [alertRules, setAlertRules] = useState<AutomatedAlertRule[]>(INITIAL_ALERT_RULES);
   const [activeAlerts, setActiveAlerts] = useState<ActiveAlertLog[]>(INITIAL_ACTIVE_ALERTS);
+  const [dispatchHistory, setDispatchHistory] = useState<ThreatDispatchPacket[]>(INITIAL_DISPATCH_HISTORY);
+  const [fugitives, setFugitives] = useState<MostWantedFugitive[]>(MOST_WANTED_LIST);
 
   // Modals & Selected Subject
   const [selectedSubject, setSelectedSubject] = useState<TrackedSubject | null>(null);
   const [isDocsExportOpen, setIsDocsExportOpen] = useState<boolean>(false);
+  const [dispatchModalTarget, setDispatchModalTarget] = useState<{
+    subject: TrackedSubject;
+    alert?: ActiveAlertLog;
+  } | null>(null);
+
+  // Helper: Get or Synthesize TrackedSubject from Fugitive
+  const getSubjectForFugitive = (fugitive: MostWantedFugitive): TrackedSubject => {
+    const existing = subjects.find(
+      (s) => s.id === fugitive.correlatedTrackedSubjectId || s.fullName.toLowerCase() === fugitive.fullName.toLowerCase()
+    );
+    if (existing) return existing;
+
+    const newSub: TrackedSubject = {
+      id: fugitive.id,
+      fullName: fugitive.fullName,
+      alias: fugitive.alias,
+      did: `did:aegis:${fugitive.id.toLowerCase()}`,
+      avatarUrl: fugitive.avatarUrl,
+      nationalIdNumber: fugitive.fbiCaseId || fugitive.interpolNoticeNumber || fugitive.mi6Reference || 'WARRANT-INT-99',
+      threatLevel: 'CRITICAL_CODE_RED',
+      geofenceStatus: 'BREACH_DETECTED',
+      currentLocation: {
+        lat: fugitive.lastKnownLocation.lat,
+        lng: fugitive.lastKnownLocation.lng,
+        altitudeMeters: 12.0,
+        accuracyMeters: 2.1,
+        headingDegrees: 120,
+        speedKmh: 35.0,
+        locationName: `${fugitive.lastKnownLocation.city} (${fugitive.lastKnownLocation.sectorNote})`,
+        zoneId: 'ZONE_WARRANT_INTERCEPT',
+        timestamp: new Date().toISOString(),
+      },
+      locationHistory: [
+        {
+          lat: fugitive.lastKnownLocation.lat - 0.002,
+          lng: fugitive.lastKnownLocation.lng - 0.002,
+          altitudeMeters: 10.0,
+          accuracyMeters: 3.5,
+          headingDegrees: 90,
+          speedKmh: 28.0,
+          locationName: `${fugitive.lastKnownLocation.city} Ingress Corridor`,
+          zoneId: 'ZONE_WARRANT_INTERCEPT',
+          timestamp: new Date(Date.now() - 300000).toISOString(),
+        },
+        {
+          lat: fugitive.lastKnownLocation.lat,
+          lng: fugitive.lastKnownLocation.lng,
+          altitudeMeters: 12.0,
+          accuracyMeters: 2.1,
+          headingDegrees: 120,
+          speedKmh: 35.0,
+          locationName: `${fugitive.lastKnownLocation.city} (${fugitive.lastKnownLocation.sectorNote})`,
+          zoneId: 'ZONE_WARRANT_INTERCEPT',
+          timestamp: new Date().toISOString(),
+        },
+      ],
+      bankcardTransactions: [
+        {
+          id: `TX-FUG-${Date.now().toString().slice(-4)}`,
+          cardMask: '•••• 7719',
+          network: 'SWIFT_INTERCEPT',
+          merchant: `${fugitive.syndicate.split('/')[0]} Anonymous Wire`,
+          amount: 50000.0,
+          currency: 'USD',
+          terminalId: 'POS-SHADOW-NODE-99',
+          lat: fugitive.lastKnownLocation.lat,
+          lng: fugitive.lastKnownLocation.lng,
+          timestamp: new Date(Date.now() - 120000).toISOString(),
+          isFlagged: true,
+          flagReason: 'Warrant subject illicit asset transaction flag',
+          authMethod: 'REMOTE_TOKEN',
+        },
+      ],
+      transitEvents: [
+        {
+          id: `TR-FUG-${Date.now().toString().slice(-4)}`,
+          transitType: 'AIRPORT_GATE',
+          stationOrGate: `${fugitive.lastKnownLocation.city} Charter Gate 4`,
+          routeId: 'FLIGHT-SHADOW-CHARTER',
+          passCardId: 'PASS-COUNTERFEIT-DIP-01',
+          lat: fugitive.lastKnownLocation.lat,
+          lng: fugitive.lastKnownLocation.lng,
+          timestamp: new Date(Date.now() - 180000).toISOString(),
+          direction: 'ENTRY',
+          biometricGateMatched: true,
+          anomalyDetected: true,
+        },
+      ],
+      biometrics: {
+        irisHash: fugitive.biometrics.irisHash,
+        faceMatchScore: fugitive.biometrics.faceMatchScore,
+        voiceprintHarmonicScore: fugitive.biometrics.voiceprintHarmonicScore,
+        gaitCadenceFrequency: 1.82,
+        faceEmbeddingVector: [0.12, 0.45, 0.88, 0.32],
+        dnaMarkerReference: fugitive.biometrics.dnaMarkerReference,
+        lastScannedAt: new Date().toISOString(),
+        govDatabaseRefId: fugitive.id,
+        govDatabaseStatus: 'WATCHLIST_RED_NOTICE',
+      },
+      assignedSecureNodeId: 'NODE-E2EE-01',
+      e2eeSessionActive: true,
+      lastTelemetryPing: new Date().toISOString(),
+      notes: fugitive.summary,
+      isLockedOn: true,
+    };
+
+    setSubjects((prev) => [newSub, ...prev.filter((p) => p.id !== newSub.id)]);
+    return newSub;
+  };
 
   // Real-time telemetry simulation loop (slow subtle position updates)
   useEffect(() => {
@@ -163,6 +281,51 @@ export default function App() {
     });
   };
 
+  // Handler: Open Emergency Dispatch Modal
+  const handleOpenDispatchModal = (subject: TrackedSubject, alert?: ActiveAlertLog) => {
+    soundFx.playRadioChirp();
+    setDispatchModalTarget({ subject, alert });
+  };
+
+  // Handler: On Police Dispatch Complete (from Modal or Quick Simulation in ActiveAlertsPanel)
+  const handleDispatchComplete = (packet: ThreatDispatchPacket, alert?: ActiveAlertLog) => {
+    soundFx.playDispatchSent();
+    setDispatchHistory((prev) => [packet, ...prev]);
+
+    // Update alert status if tied to an alert
+    if (alert) {
+      setActiveAlerts((prev) =>
+        prev.map((a) =>
+          a.id === alert.id
+            ? {
+                ...a,
+                dispatchedToStationId: packet.targetStationId,
+                dispatchId: packet.dispatchId,
+                actionTaken: `Rapid response dispatched to ${packet.targetStationName} CAD Terminal. Scrambled units: ${packet.assignedPatrolUnits.join(', ')}.`,
+              }
+            : a
+        )
+      );
+    }
+
+    // Append cryptographic dispatch record to Merkle Audit DAG
+    const newBlock: MerkleAuditBlock = {
+      blockHeight: merkleBlocks[0].blockHeight + 1,
+      hash: `0x${Math.random().toString(16).substring(2)}${Math.random().toString(16).substring(2)}`,
+      previousHash: merkleBlocks[0].hash,
+      merkleRoot: packet.sha256Seal,
+      action: 'AUTONOMOUS_POLICE_DISPATCH_TRANSMITTED',
+      subjectDid: packet.subjectDid,
+      actorNodeId: 'DISPATCH-CAD-AMS-RELAY',
+      payloadSummary: `Transmitted CAD P1 Emergency Broadcast for ${packet.subjectName} to ${packet.targetStationName} (${packet.channel})`,
+      timestamp: packet.timestamp,
+      signature: packet.sha256Seal,
+      status: 'VERIFIED_ON_CHAIN',
+    };
+
+    setMerkleBlocks((prev) => [newBlock, ...prev]);
+  };
+
   return (
     <div className="min-h-screen bg-[#020617] text-slate-100 flex flex-col selection:bg-cyan-500 selection:text-black">
       {/* Top Header */}
@@ -182,6 +345,7 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         activeAlertCount={activeAlerts.filter((a) => !a.isResolved).length}
+        fugitiveCount={fugitives.length}
       />
 
       {/* Main Viewport Container */}
@@ -197,6 +361,9 @@ export default function App() {
               selectedSubject={selectedSubject}
               onSelectSubject={(sub) => setSelectedSubject(sub)}
               isLockdownActive={isLockdownActive}
+              policeStations={POLICE_STATIONS}
+              onDispatchToPolice={(sub) => handleOpenDispatchModal(sub)}
+              alerts={activeAlerts}
             />
 
             {/* Split Grid: Live CCTV Feed & Bankcard/Transit Stream */}
@@ -213,17 +380,43 @@ export default function App() {
               />
             </div>
 
-            {/* Active Incident Containment Queue */}
+            {/* Active Incident Containment Queue & Rapid Law Enforcement Dispatch */}
             <ActiveAlertsPanel
               alerts={activeAlerts}
               subjects={subjects}
               onSelectSubject={(sub) => setSelectedSubject(sub)}
               onResolveAlert={handleResolveAlert}
+              onDispatchAlert={(sub, alt) => handleOpenDispatchModal(sub, alt)}
+              onDispatchComplete={(packet, alt) => handleDispatchComplete(packet, alt)}
             />
           </div>
         )}
 
-        {/* VIEW 2: Decentralized Identity (DID) & W3C Keyring */}
+        {/* VIEW 2: Global Most Wanted Fugitives List (FBI, Interpol, MI6, Europol) */}
+        {activeTab === 'most-wanted' && (
+          <div className="space-y-6 animate-fadeIn">
+            <MostWantedList
+              fugitives={fugitives}
+              subjects={subjects}
+              onSelectTrackSubject={(sub) => {
+                const targetSub = subjects.find((s) => s.id === sub.id) || sub;
+                setSelectedSubject(targetSub);
+                setActiveTab('gods-eye');
+              }}
+              onDispatchFugitive={(fugitive) => {
+                const targetSub = getSubjectForFugitive(fugitive);
+                handleOpenDispatchModal(targetSub);
+              }}
+              onRequestAIDossier={(fugitive) => {
+                const targetSub = getSubjectForFugitive(fugitive);
+                setSelectedSubject(targetSub);
+                setActiveTab('ai-intel');
+              }}
+            />
+          </div>
+        )}
+
+        {/* VIEW 3: Decentralized Identity (DID) & W3C Keyring */}
         {activeTab === 'did-vault' && (
           <div className="space-y-6 animate-fadeIn">
             <DIDKeyring dids={sovereignDids} onAddDID={handleAddDID} />
@@ -269,6 +462,8 @@ export default function App() {
               subjects={subjects}
               onSelectSubject={(sub) => setSelectedSubject(sub)}
               onResolveAlert={handleResolveAlert}
+              onDispatchAlert={(sub, alt) => handleOpenDispatchModal(sub, alt)}
+              onDispatchComplete={(packet, alt) => handleDispatchComplete(packet, alt)}
             />
           </div>
         )}
@@ -294,12 +489,29 @@ export default function App() {
           onDispatchContainment={(sub) => {
             handleSimulateBreach();
           }}
+          onDispatchToPolice={(sub) => {
+            handleOpenDispatchModal(sub);
+          }}
           onExportToDocs={(sub) => {
             setIsDocsExportOpen(true);
           }}
           onRequestAIAssessment={(sub) => {
             setSelectedSubject(sub);
             setActiveTab('ai-intel');
+          }}
+        />
+      )}
+
+      {/* Emergency Law Enforcement CAD Dispatch Modal */}
+      {dispatchModalTarget && (
+        <EmergencyDispatchModal
+          isOpen={true}
+          onClose={() => setDispatchModalTarget(null)}
+          subject={dispatchModalTarget.subject}
+          alert={dispatchModalTarget.alert}
+          policeStations={POLICE_STATIONS}
+          onDispatchSent={(packet) => {
+            handleDispatchComplete(packet, dispatchModalTarget.alert);
           }}
         />
       )}

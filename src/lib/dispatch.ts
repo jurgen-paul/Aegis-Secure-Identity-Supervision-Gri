@@ -1,6 +1,6 @@
 import { LocationCoordinate, PoliceStation, ThreatDispatchPacket, DispatchPriority, DispatchChannel, ThreatLevel, TrackedSubject, ActiveAlertLog } from '../types';
 import { POLICE_STATIONS } from './mockData';
-import { sha256Hex } from './crypto';
+import { sha256 } from './crypto';
 import { soundFx } from './audio';
 
 /**
@@ -199,7 +199,7 @@ BIOMETRIC CONFIDENCE: ${subject.biometrics.faceMatchScore}%
 DIRECTIVE: DEPLOY CORDON INTERCEPT IMMEDIATELY.`;
 
   const rawString = `${dispatchId}|${subject.id}|${targetStation.id}|${Date.now()}`;
-  const sha256Seal = await sha256Hex(rawString);
+  const sha256Seal = await sha256(rawString);
 
   const fallbackPacket: ThreatDispatchPacket = {
     dispatchId,

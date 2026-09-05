@@ -48,3 +48,31 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #0ea5e9;
 }
+
+/* Print-Friendly Styles for Intelligence PDF Summaries */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-summary-sheet,
+  #printable-summary-sheet * {
+    visibility: visible;
+  }
+  #printable-summary-sheet {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

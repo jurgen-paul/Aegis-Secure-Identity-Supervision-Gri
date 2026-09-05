@@ -211,6 +211,55 @@ export interface PoliceStation {
   etaMinutes?: number;
 }
 
+export type AgencyType = 'FBI' | 'INTERPOL' | 'MI6' | 'EUROPOL';
+export type NoticeType = 'FBI_TOP_TEN' | 'INTERPOL_RED_NOTICE' | 'MI6_SIS_ALPHA' | 'EUROPOL_MOST_WANTED';
+export type FugitiveStatus = 'AT_LARGE' | 'ARMED_AND_DANGEROUS' | 'TRACKED_IN_SECTOR' | 'IMMEDIATE_INTERCEPT';
+
+export interface MostWantedFugitive {
+  id: string;
+  agency: AgencyType;
+  noticeType: NoticeType;
+  fullName: string;
+  alias: string;
+  aliases: string[];
+  bountyReward: string;
+  status: FugitiveStatus;
+  dangerRating: 'EXTREME' | 'CRITICAL' | 'HIGH';
+  fbiCaseId?: string;
+  interpolNoticeNumber?: string;
+  mi6Reference?: string;
+  europolRef?: string;
+  charges: string[];
+  syndicate: string;
+  summary: string;
+  nationality: string;
+  age: number;
+  avatarUrl: string;
+  lastKnownLocation: {
+    lat: number;
+    lng: number;
+    city: string;
+    country: string;
+    sectorNote: string;
+  };
+  physicalDescription: {
+    height: string;
+    weight: string;
+    eyes: string;
+    hair: string;
+    scarsAndMarks: string[];
+    cautionNotes: string;
+  };
+  biometrics: {
+    irisHash: string;
+    faceMatchScore: number;
+    dnaMarkerReference: string;
+    voiceprintHarmonicScore: number;
+  };
+  correlatedTrackedSubjectId?: string;
+  associatedWeaponry?: string[];
+}
+
 export type DispatchPriority = 'PRIORITY_1_CODE_RED' | 'PRIORITY_2_TACTICAL_INTERCEPT' | 'PRIORITY_3_ALERT_BOLO';
 export type DispatchChannel = 'TETRA_C2000_POLICE_NET' | 'CAD_DIRECT_TERMINAL_112' | 'EUROPOL_HIGH_THREAT_WAN' | 'MARECHAUSSEE_TACTICAL_ENCRYPTED';
 

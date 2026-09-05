@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   TrackedSubject,
   SurveillanceNode,
   CCTVCameraFeed,
   PoliceStation,
+  ActiveAlertLog,
 } from '../../types';
 import { POLICE_STATIONS } from '../../lib/mockData';
 import {
@@ -23,8 +24,113 @@ import {
   Car,
   PhoneCall,
   Flame,
+  AlertTriangle,
+  Activity,
+  Info,
+  X,
 } from 'lucide-react';
 import { soundFx } from '../../lib/audio';
+
+export interface TacticalSector {
+  id: string;
+  code: string;
+  name: string;
+  subLabel: string;
+  lat: number;
+  lng: number;
+  radiusMeters: number;
+  baseRisk: number;
+  description: string;
+}
+
+export interface TacticalSectorWithRisk extends TacticalSector {
+  riskScore: number;
+  riskLevel: 'CRITICAL' | 'HIGH' | 'ELEVATED' | 'NOMINAL';
+  colorHex: string;
+  gradientId: string;
+  activeAlerts: ActiveAlertLog[];
+  subjectsInSector: TrackedSubject[];
+}
+
+const METRO_SECTORS: TacticalSector[] = [
+  {
+    id: 'SEC-1A',
+    code: 'SEC-1A',
+    name: 'Centraal Station & North Rail Corridor',
+    subLabel: 'International Transit Hub & High-Speed Border',
+    lat: 52.3792,
+    lng: 4.8995,
+    radiusMeters: 650,
+    baseRisk: 30,
+    description: 'High-density international railway terminus, Eurostar/Thalys transit gates, Metro 52 interchange.',
+  },
+  {
+    id: 'SEC-2A',
+    code: 'SEC-2A',
+    name: 'Dam Square & Rokin Commercial Matrix',
+    subLabel: 'High Pedestrian Flow & Financial Vaults',
+    lat: 52.3731,
+    lng: 4.8926,
+    radiusMeters: 550,
+    baseRisk: 22,
+    description: 'Civic heart, high-volume retail, ATM clusters, multi-angle synthetic CCTV matrix.',
+  },
+  {
+    id: 'SEC-3A',
+    code: 'SEC-3A',
+    name: 'Waterlooplein & South Transit Axis',
+    subLabel: 'Metro Corridor & East Canal Crossing',
+    lat: 52.3676,
+    lng: 4.9041,
+    radiusMeters: 500,
+    baseRisk: 15,
+    description: 'Metro hub, transit sensor array, secondary ingress corridor.',
+  },
+  {
+    id: 'SEC-4B',
+    code: 'SEC-4B',
+    name: 'Museumplein Quantum Research Enclave',
+    subLabel: 'Restricted Defense & Deep Tech Labs',
+    lat: 52.3601,
+    lng: 4.8852,
+    radiusMeters: 580,
+    baseRisk: 20,
+    description: 'Advanced quantum computing enclave, diplomatic sector, restricted laboratory perimeter.',
+  },
+  {
+    id: 'SEC-5C',
+    code: 'SEC-5C',
+    name: 'De Ruijterkade & Maritime River Corridor',
+    subLabel: 'IJ Waterway & Port Intercept Hub',
+    lat: 52.3812,
+    lng: 4.9070,
+    radiusMeters: 520,
+    baseRisk: 15,
+    description: 'Navigational waterway, passenger ferries, Europol maritime interdiction station.',
+  },
+  {
+    id: 'SEC-6D',
+    code: 'SEC-6D',
+    name: 'Leidseplein & South-West Urban Sector',
+    subLabel: 'High Nightlife & Dense Urban Matrix',
+    lat: 52.3638,
+    lng: 4.8820,
+    radiusMeters: 460,
+    baseRisk: 10,
+    description: 'Dense pedestrian corridors, tram intersection nodes, surveillance relay coverage.',
+  },
+  {
+    id: 'SEC-7W',
+    code: 'SEC-7W',
+    name: 'Jordaan Canal Matrix & West Perimeter',
+    subLabel: 'Historic Residential & Canal Ingress',
+    lat: 52.3745,
+    lng: 4.8805,
+    radiusMeters: 480,
+    baseRisk: 10,
+    description: 'Canal grid network, decentralized mesh node relay zone.',
+  },
+];
 
 interface TacticalMapProps {
   subjects: TrackedSubject[];
@@ -35,6 +141,7 @@ interface TacticalMapProps {
   isLockdownActive: boolean;
   policeStations?: PoliceStation[];
   onDispatchToPolice?: (subject: TrackedSubject) => void;
+  alerts?: ActiveAlertLog[];
 }
 
 export const TacticalMap: React.FC<TacticalMapProps> = ({
@@ -46,14 +153,17 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
   isLockdownActive,
   policeStations = POLICE_STATIONS,
   onDispatchToPolice,
+  alerts = [],
 }) => {
   const [zoomLevel, setZoomLevel] = useState<number>(1.2);
+  const [showHeatmap, setShowHeatmap] = useState<boolean>(true);
   const [showGeofences, setShowGeofences] = useState<boolean>(true);
   const [showTrails, setShowTrails] = useState<boolean>(true);
   const [showNodes, setShowNodes] = useState<boolean>(true);
   const [showCameras, setShowCameras] = useState<boolean>(true);
   const [showPolice, setShowPolice] = useState<boolean>(true);
   const [radarAngle, setRadarAngle] = useState<number>(0);
+  const [selectedSector, setSelectedSector] = useState<TacticalSectorWithRisk | null>(null);
 
   // Center coordinate around Amsterdam core (52.3702° N, 4.8952° E)
   const centerLat = 52.3702;
@@ -79,9 +189,104 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
     return { x, y };
   };
 
+  // Data-driven Regional Risk Heatmap Computation
+  const computedSectors = useMemo<TacticalSectorWithRisk[]>(() => {
+    const unresolvedAlerts = alerts.filter((a) => !a.isResolved);
+
+    return METRO_SECTORS.map((sec) => {
+      // 1. Identify active alerts matching this sector by name, code, or proximity
+      const sectorAlerts = unresolvedAlerts.filter((a) => {
+        const text = `${a.locationDetails} ${a.title} ${a.details}`.toLowerCase();
+        const matchesKeyword =
+          text.includes(sec.code.toLowerCase()) ||
+          text.includes(sec.name.toLowerCase()) ||
+          text.includes(sec.id.toLowerCase()) ||
+          (sec.id === 'SEC-1A' && (text.includes('centraal') || text.includes('1a') || text.includes('platform 15') || text.includes('rail'))) ||
+          (sec.id === 'SEC-2A' && (text.includes('dam') || text.includes('2a') || text.includes('rokin'))) ||
+          (sec.id === 'SEC-3A' && (text.includes('waterloo') || text.includes('3a'))) ||
+          (sec.id === 'SEC-4B' && (text.includes('museum') || text.includes('quantum') || text.includes('4b'))) ||
+          (sec.id === 'SEC-5C' && (text.includes('maritime') || text.includes('water') || text.includes('ruijterkade')));
+
+        return matchesKeyword;
+      });
+
+      // 2. Identify tracked subjects inside this sector radius
+      const sectorSubjects = subjects.filter((s) => {
+        const dist = Math.hypot(
+          s.currentLocation.lat - sec.lat,
+          s.currentLocation.lng - sec.lng
+        );
+        return dist <= 0.0078; // Approx ~750m radius
+      });
+
+      // 3. Compute dynamic weighted risk score (0 - 100%)
+      let score = sec.baseRisk;
+
+      sectorAlerts.forEach((a) => {
+        if (a.severity === 'CRITICAL_CODE_RED') score += 35;
+        else if (a.severity === 'HIGH') score += 20;
+        else score += 12;
+      });
+
+      sectorSubjects.forEach((s) => {
+        if (s.threatLevel === 'CRITICAL_CODE_RED') score += 32;
+        else if (s.threatLevel === 'HIGH') score += 18;
+        else score += 8;
+
+        if (s.geofenceStatus === 'BREACH_DETECTED') score += 25;
+        else if (s.geofenceStatus === 'APPROACHING_BOUNDARY') score += 12;
+
+        // Flagged transactions or transit anomalies in sector
+        if (s.bankcardTransactions.some((tx) => tx.isFlagged)) score += 10;
+        if (s.transitEvents.some((tr) => tr.anomalyDetected)) score += 12;
+      });
+
+      const clampedScore = Math.min(Math.max(score, 10), 99);
+
+      // Determine risk tier & color palette
+      let riskLevel: 'CRITICAL' | 'HIGH' | 'ELEVATED' | 'NOMINAL' = 'NOMINAL';
+      let colorHex = '#10b981'; // Green
+      let gradientId = 'heatGradCyan';
+
+      if (clampedScore >= 70) {
+        riskLevel = 'CRITICAL';
+        colorHex = '#ef4444'; // Red
+        gradientId = 'heatGradRed';
+      } else if (clampedScore >= 45) {
+        riskLevel = 'HIGH';
+        colorHex = '#f97316'; // Orange
+        gradientId = 'heatGradOrange';
+      } else if (clampedScore >= 25) {
+        riskLevel = 'ELEVATED';
+        colorHex = '#eab308'; // Yellow
+        gradientId = 'heatGradYellow';
+      }
+
+      return {
+        ...sec,
+        riskScore: clampedScore,
+        riskLevel,
+        colorHex,
+        gradientId,
+        activeAlerts: sectorAlerts,
+        subjectsInSector: sectorSubjects,
+      };
+    });
+  }, [alerts, subjects]);
+
+  const maxRiskSector = useMemo(() => {
+    if (computedSectors.length === 0) return null;
+    return [...computedSectors].sort((a, b) => b.riskScore - a.riskScore)[0];
+  }, [computedSectors]);
+
   const handleMarkerClick = (sub: TrackedSubject) => {
     soundFx.playLockOn();
     onSelectSubject(sub);
+  };
+
+  const handleSectorClick = (sector: TacticalSectorWithRisk) => {
+    soundFx.playClick();
+    setSelectedSector((prev) => (prev?.id === sector.id ? null : sector));
   };
 
   return (
@@ -97,14 +302,53 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
           <span className="text-slate-400">LAT: 52.3702°N LNG: 4.8952°E</span>
           <span className="text-slate-600">|</span>
           <span className="text-emerald-400">{subjects.length} TARGETS TRACKED</span>
+          {maxRiskSector && (
+            <>
+              <span className="text-slate-600">|</span>
+              <div className="flex items-center gap-1 text-[11px]">
+                <Flame className="w-3.5 h-3.5 text-red-400 animate-pulse" />
+                <span className="text-red-400 font-bold">
+                  PEAK RISK: {maxRiskSector.code} ({maxRiskSector.riskScore}%)
+                </span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Map Layers & Zoom controls */}
         <div className="pointer-events-auto flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 backdrop-blur-md p-1 rounded-lg">
+          {/* Regional Risk Heatmap Layer Toggle */}
+          <button
+            onClick={() => {
+              soundFx.playClick();
+              setShowHeatmap(!showHeatmap);
+            }}
+            className={`px-2.5 py-1 rounded text-[11px] font-mono transition-all cursor-pointer flex items-center gap-1.5 ${
+              showHeatmap
+                ? 'bg-gradient-to-r from-red-950 via-orange-950 to-amber-950 text-amber-300 border border-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.3)]'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+            title="Toggle Regional Risk Heatmap (Active Alert & Threat Density Layer)"
+          >
+            <Flame
+              className={`w-3.5 h-3.5 ${
+                showHeatmap ? 'text-orange-400 animate-pulse' : 'text-slate-400'
+              }`}
+            />
+            <span>Risk Heatmap</span>
+            {showHeatmap && (
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+            )}
+          </button>
+
+          <div className="w-px h-4 bg-slate-800 mx-0.5" />
+
           <button
             onClick={() => setShowGeofences(!showGeofences)}
             className={`px-2 py-1 rounded text-[11px] font-mono transition-colors cursor-pointer ${
-              showGeofences ? 'bg-cyan-950 text-cyan-300 border border-cyan-700/60' : 'text-slate-400 hover:text-slate-200'
+              showGeofences
+                ? 'bg-cyan-950 text-cyan-300 border border-cyan-700/60'
+                : 'text-slate-400 hover:text-slate-200'
             }`}
             title="Toggle Geofence Boundaries"
           >
@@ -113,7 +357,9 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
           <button
             onClick={() => setShowTrails(!showTrails)}
             className={`px-2 py-1 rounded text-[11px] font-mono transition-colors cursor-pointer ${
-              showTrails ? 'bg-cyan-950 text-cyan-300 border border-cyan-700/60' : 'text-slate-400 hover:text-slate-200'
+              showTrails
+                ? 'bg-cyan-950 text-cyan-300 border border-cyan-700/60'
+                : 'text-slate-400 hover:text-slate-200'
             }`}
             title="Toggle Historical Movement Trails"
           >
@@ -122,7 +368,9 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
           <button
             onClick={() => setShowNodes(!showNodes)}
             className={`px-2 py-1 rounded text-[11px] font-mono transition-colors cursor-pointer ${
-              showNodes ? 'bg-cyan-950 text-cyan-300 border border-cyan-700/60' : 'text-slate-400 hover:text-slate-200'
+              showNodes
+                ? 'bg-cyan-950 text-cyan-300 border border-cyan-700/60'
+                : 'text-slate-400 hover:text-slate-200'
             }`}
             title="Toggle Secure Node Relays"
           >
@@ -131,7 +379,9 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
           <button
             onClick={() => setShowCameras(!showCameras)}
             className={`px-2 py-1 rounded text-[11px] font-mono transition-colors cursor-pointer ${
-              showCameras ? 'bg-cyan-950 text-cyan-300 border border-cyan-700/60' : 'text-slate-400 hover:text-slate-200'
+              showCameras
+                ? 'bg-cyan-950 text-cyan-300 border border-cyan-700/60'
+                : 'text-slate-400 hover:text-slate-200'
             }`}
             title="Toggle CCTV Towers"
           >
@@ -140,7 +390,9 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
           <button
             onClick={() => setShowPolice(!showPolice)}
             className={`px-2 py-1 rounded text-[11px] font-mono transition-colors cursor-pointer flex items-center gap-1 ${
-              showPolice ? 'bg-blue-950 text-blue-300 border border-blue-600' : 'text-slate-400 hover:text-slate-200'
+              showPolice
+                ? 'bg-blue-950 text-blue-300 border border-blue-600'
+                : 'text-slate-400 hover:text-slate-200'
             }`}
             title="Toggle Police Stations & Patrol Response Units"
           >
@@ -197,6 +449,52 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
               <feGaussianBlur stdDeviation="3" result="blur" />
               <feComposite in="SourceGraphic" in2="blur" operator="over" />
             </filter>
+
+            {/* Heatmap Gaussian Diffusion Filter */}
+            <filter id="heatDiffusion" x="-40%" y="-40%" width="180%" height="180%">
+              <feGaussianBlur stdDeviation="12" result="blur" />
+              <feColorMatrix
+                type="matrix"
+                values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1.4 0"
+              />
+            </filter>
+
+            {/* Heatmap Multi-Stop Radial Gradients (Red / Orange / Yellow / Cyan) */}
+            <radialGradient id="heatGradRed" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#ef4444" stopOpacity="0.75" />
+              <stop offset="35%" stopColor="#dc2626" stopOpacity="0.55" />
+              <stop offset="65%" stopColor="#b91c1c" stopOpacity="0.30" />
+              <stop offset="85%" stopColor="#ef4444" stopOpacity="0.10" />
+              <stop offset="100%" stopColor="#ef4444" stopOpacity="0" />
+            </radialGradient>
+
+            <radialGradient id="heatGradOrange" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#f97316" stopOpacity="0.70" />
+              <stop offset="35%" stopColor="#ea580c" stopOpacity="0.48" />
+              <stop offset="65%" stopColor="#c2410c" stopOpacity="0.25" />
+              <stop offset="85%" stopColor="#f97316" stopOpacity="0.08" />
+              <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
+            </radialGradient>
+
+            <radialGradient id="heatGradYellow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#eab308" stopOpacity="0.65" />
+              <stop offset="35%" stopColor="#ca8a04" stopOpacity="0.42" />
+              <stop offset="65%" stopColor="#a16207" stopOpacity="0.20" />
+              <stop offset="85%" stopColor="#eab308" stopOpacity="0.06" />
+              <stop offset="100%" stopColor="#eab308" stopOpacity="0" />
+            </radialGradient>
+
+            <radialGradient id="heatGradCyan" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.45" />
+              <stop offset="50%" stopColor="#0891b2" stopOpacity="0.20" />
+              <stop offset="80%" stopColor="#06b6d4" stopOpacity="0.05" />
+              <stop offset="100%" stopColor="#06b6d4" stopOpacity="0" />
+            </radialGradient>
+
+            {/* Danger Cross-Hatch Pattern */}
+            <pattern id="dangerHatch" width="8" height="8" patternUnits="userSpaceOnUse">
+              <path d="M-2,2 l4,-4 M0,8 l8,-8 M6,10 l4,-4" stroke="#ef4444" strokeWidth="0.8" opacity="0.35" />
+            </pattern>
           </defs>
 
           {/* Background Grid */}
@@ -211,6 +509,139 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
             {/* IJ Waterfront */}
             <path d="M 100,120 Q 400,150 700,100" stroke="#0369a1" strokeWidth="4" opacity="0.7" />
           </g>
+
+          {/* LAYER: Regional Risk Heatmap (Data-Driven Threat Intensity) */}
+          {showHeatmap && (
+            <g id="regional-risk-heatmap-layer" className="transition-opacity duration-500">
+              {computedSectors.map((sector) => {
+                const { x, y } = projectCoord(sector.lat, sector.lng);
+                const radius = (sector.radiusMeters / 10) * zoomLevel;
+                const isCritical = sector.riskLevel === 'CRITICAL';
+                const isHigh = sector.riskLevel === 'HIGH';
+                const isSelected = selectedSector?.id === sector.id;
+
+                return (
+                  <g
+                    key={`heatmap-${sector.id}`}
+                    transform={`translate(${x}, ${y})`}
+                    className="cursor-pointer group"
+                    onClick={() => handleSectorClick(sector)}
+                  >
+                    {/* Outer Thermal Dispersion Blob with Filter */}
+                    <circle
+                      r={radius * 1.3}
+                      fill={`url(#${sector.gradientId})`}
+                      filter="url(#heatDiffusion)"
+                      opacity={isCritical ? 0.95 : isHigh ? 0.85 : 0.75}
+                    />
+
+                    {/* Concentric Thermal Core */}
+                    <circle
+                      r={radius * 0.75}
+                      fill={`url(#${sector.gradientId})`}
+                      opacity={0.8}
+                    />
+
+                    {/* Cross-Hatch Danger Texture for Critical Sectors */}
+                    {isCritical && (
+                      <circle
+                        r={radius * 0.9}
+                        fill="url(#dangerHatch)"
+                        className="animate-pulse"
+                      />
+                    )}
+
+                    {/* Outer Iso-Threat Topological Contour Rings */}
+                    <circle
+                      r={radius}
+                      fill="none"
+                      stroke={sector.colorHex}
+                      strokeWidth={isSelected ? '2.5' : isCritical ? '1.8' : '1.2'}
+                      strokeDasharray={isCritical ? '6,4' : '4,3'}
+                      opacity={isCritical ? 0.85 : 0.55}
+                      className={isCritical ? 'animate-pulse' : ''}
+                    />
+                    <circle
+                      r={radius * 0.5}
+                      fill="none"
+                      stroke={sector.colorHex}
+                      strokeWidth="1"
+                      strokeDasharray="3,3"
+                      opacity={0.4}
+                    />
+
+                    {/* Pulsing Thermal Center Node */}
+                    <circle
+                      r="4"
+                      fill={sector.colorHex}
+                      filter={isCritical ? 'url(#redGlow)' : undefined}
+                    />
+                    {isCritical && (
+                      <circle
+                        r="10"
+                        fill="none"
+                        stroke="#ef4444"
+                        strokeWidth="1.5"
+                        className="animate-ping opacity-60"
+                      />
+                    )}
+
+                    {/* Sector Tactical Risk Label & Density Badge */}
+                    <g transform={`translate(0, ${-radius * 0.85 - 12})`}>
+                      <rect
+                        x="-70"
+                        y="-10"
+                        width="140"
+                        height="20"
+                        rx="4"
+                        fill="rgba(15, 23, 42, 0.92)"
+                        stroke={sector.colorHex}
+                        strokeWidth={isSelected ? '1.8' : '1'}
+                      />
+                      <text
+                        x="0"
+                        y="4"
+                        textAnchor="middle"
+                        fill={sector.colorHex}
+                        fontSize="9"
+                        fontFamily="monospace"
+                        fontWeight="bold"
+                      >
+                        [{sector.code}] {sector.riskScore}% {sector.riskLevel}
+                      </text>
+
+                      {/* Active Alert Density Flag Badge if alerts present */}
+                      {sector.activeAlerts.length > 0 && (
+                        <g transform="translate(48, -12)">
+                          <rect
+                            x="-8"
+                            y="-6"
+                            width="34"
+                            height="14"
+                            rx="3"
+                            fill="#991b1b"
+                            stroke="#f87171"
+                            strokeWidth="0.8"
+                          />
+                          <text
+                            x="9"
+                            y="4"
+                            textAnchor="middle"
+                            fill="#ffffff"
+                            fontSize="8"
+                            fontFamily="monospace"
+                            fontWeight="bold"
+                          >
+                            ! {sector.activeAlerts.length}
+                          </text>
+                        </g>
+                      )}
+                    </g>
+                  </g>
+                );
+              })}
+            </g>
+          )}
 
           {/* Concentric Radar Range Circles */}
           <g stroke="#0369a1" strokeWidth="0.7" strokeDasharray="3,3" fill="none" opacity="0.4">
@@ -637,24 +1068,154 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({
           })}
         </svg>
 
+        {/* Floating Sector Risk Inspector Card (If a Sector is Clicked) */}
+        {selectedSector && (
+          <div className="absolute top-14 right-3 z-30 w-80 bg-slate-950/95 border border-slate-700 rounded-xl p-4 shadow-2xl backdrop-blur-md font-mono text-xs animate-fadeIn space-y-3">
+            <div className="flex items-start justify-between gap-2 border-b border-slate-800 pb-2">
+              <div className="flex items-center gap-2">
+                <div
+                  className="p-1.5 rounded"
+                  style={{
+                    backgroundColor: `${selectedSector.colorHex}20`,
+                    color: selectedSector.colorHex,
+                    border: `1px solid ${selectedSector.colorHex}`,
+                  }}
+                >
+                  <Flame className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-white uppercase">{selectedSector.code}</span>
+                    <span
+                      className="px-1.5 py-0.5 rounded text-[10px] font-bold"
+                      style={{
+                        backgroundColor: `${selectedSector.colorHex}25`,
+                        color: selectedSector.colorHex,
+                        border: `1px solid ${selectedSector.colorHex}60`,
+                      }}
+                    >
+                      {selectedSector.riskLevel}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-sans line-clamp-1">
+                    {selectedSector.name}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSelectedSector(null)}
+                className="text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Risk Meter Bar */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-[11px]">
+                <span className="text-slate-400">Risk Intensity Index</span>
+                <span className="font-bold font-mono" style={{ color: selectedSector.colorHex }}>
+                  {selectedSector.riskScore}% / 100
+                </span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-slate-900 border border-slate-800 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${selectedSector.riskScore}%`,
+                    backgroundColor: selectedSector.colorHex,
+                    boxShadow: `0 0 10px ${selectedSector.colorHex}`,
+                  }}
+                />
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-300 font-sans leading-relaxed">
+              {selectedSector.description}
+            </p>
+
+            {/* Active Alerts in Sector */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[10px] text-slate-400 border-b border-slate-850 pb-1">
+                <span>ACTIVE SECTOR ALERTS</span>
+                <span className="font-bold text-white">{selectedSector.activeAlerts.length} LOGGED</span>
+              </div>
+              {selectedSector.activeAlerts.length > 0 ? (
+                <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
+                  {selectedSector.activeAlerts.map((alt) => (
+                    <div
+                      key={alt.id}
+                      className="p-1.5 rounded bg-slate-900/90 border border-slate-800 text-[10px] text-slate-300 flex items-start gap-1.5"
+                    >
+                      <AlertOctagon className="w-3 h-3 text-red-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold text-white line-clamp-1">{alt.title}</div>
+                        <div className="text-[9px] text-slate-400">{alt.subjectName}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-[10px] text-slate-500 italic">No unresolved critical alerts in this sector.</div>
+              )}
+            </div>
+
+            {/* Monitored Subjects Present */}
+            {selectedSector.subjectsInSector.length > 0 && (
+              <div className="space-y-1 pt-1 border-t border-slate-850">
+                <div className="text-[10px] text-slate-400">
+                  TARGETS IN CORRIDOR: {selectedSector.subjectsInSector.map((s) => s.fullName).join(', ')}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Bottom Map Legend */}
-        <div className="absolute bottom-3 left-3 z-20 flex items-center gap-3 px-3 py-1.5 rounded-lg bg-slate-950/90 border border-slate-800/80 backdrop-blur-md text-[11px] font-mono text-slate-300">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
-            <span className="text-red-400 font-semibold">Code Red Subject</span>
+        <div className="absolute bottom-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-3 px-3 py-1.5 rounded-lg bg-slate-950/90 border border-slate-800/80 backdrop-blur-md text-[11px] font-mono text-slate-300">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+              <span className="text-red-400 font-semibold">Code Red Subject</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+              <span className="text-amber-300">High Watch</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+              <span className="text-emerald-300">Verified Citizen</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rotate-45 bg-cyan-400" />
+              <span className="text-cyan-300">E2EE Node Relay</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-            <span className="text-amber-300">High Watch</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-            <span className="text-emerald-300">Verified Citizen</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rotate-45 bg-cyan-400" />
-            <span className="text-cyan-300">E2EE Node Relay</span>
-          </div>
+
+          {/* Risk Heatmap Color Scale Legend */}
+          {showHeatmap && (
+            <div className="flex items-center gap-2 pl-3 border-l border-slate-800 text-[10px]">
+              <span className="text-slate-400 font-bold flex items-center gap-1">
+                <Flame className="w-3 h-3 text-orange-400" />
+                <span>RISK SPECTRUM:</span>
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="flex items-center gap-1 text-red-400">
+                  <span className="w-2 h-2 rounded-full bg-red-500" /> &gt;=70% Critical
+                </span>
+                <span className="flex items-center gap-1 text-orange-400">
+                  <span className="w-2 h-2 rounded-full bg-orange-500" /> 45-69% High
+                </span>
+                <span className="flex items-center gap-1 text-yellow-400">
+                  <span className="w-2 h-2 rounded-full bg-yellow-500" /> 25-44% Elevated
+                </span>
+                <span className="flex items-center gap-1 text-cyan-400">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400" /> &lt;25% Nominal
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

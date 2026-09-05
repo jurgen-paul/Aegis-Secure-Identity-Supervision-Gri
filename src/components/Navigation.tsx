@@ -9,18 +9,20 @@ import {
   Flame,
 } from 'lucide-react';
 
-export type ActiveTab = 'gods-eye' | 'did-vault' | 'e2ee-mesh' | 'audit-dag' | 'containment' | 'ai-intel';
+export type ActiveTab = 'gods-eye' | 'most-wanted' | 'did-vault' | 'e2ee-mesh' | 'audit-dag' | 'containment' | 'ai-intel';
 
 interface NavigationProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
   activeAlertCount: number;
+  fugitiveCount?: number;
 }
 
 export const Navigation: React.FC<NavigationProps> = ({
   activeTab,
   setActiveTab,
   activeAlertCount,
+  fugitiveCount = 9,
 }) => {
   const tabs = [
     {
@@ -30,6 +32,14 @@ export const Navigation: React.FC<NavigationProps> = ({
       icon: Eye,
       badge: null,
       highlight: true,
+    },
+    {
+      id: 'most-wanted' as ActiveTab,
+      label: 'Most Wanted',
+      subLabel: 'FBI • INTERPOL • MI6',
+      icon: Flame,
+      badge: `${fugitiveCount} WANTED`,
+      badgeRed: true,
     },
     {
       id: 'did-vault' as ActiveTab,

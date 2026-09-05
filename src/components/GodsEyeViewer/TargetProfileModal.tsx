@@ -22,8 +22,11 @@ import {
   Car,
   Send,
   PhoneCall,
+  Printer,
 } from 'lucide-react';
 import { soundFx } from '../../lib/audio';
+import { PrintSummaryModal } from './PrintSummaryModal';
+import { BiometricRadarComparison } from './BiometricRadarComparison';
 
 interface TargetProfileModalProps {
   subject: TrackedSubject | null;
@@ -43,6 +46,7 @@ export const TargetProfileModal: React.FC<TargetProfileModalProps> = ({
   onDispatchToPolice,
 }) => {
   const [activeTab, setActiveTab] = useState<'biometrics' | 'financial' | 'transit' | 'sovereign'>('biometrics');
+  const [isPrintSummaryOpen, setIsPrintSummaryOpen] = useState<boolean>(false);
 
   if (!subject) return null;
 
@@ -101,6 +105,18 @@ export const TargetProfileModal: React.FC<TargetProfileModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                setIsPrintSummaryOpen(true);
+              }}
+              className="px-3 py-1.5 rounded bg-emerald-950/90 border border-emerald-500/80 text-emerald-300 hover:bg-emerald-900 hover:text-white shadow-[0_0_12px_rgba(16,185,129,0.25)] transition-all flex items-center gap-1.5 cursor-pointer text-xs font-semibold"
+              title="Generate quick printable PDF summary with last 5 locations and transit history"
+            >
+              <Printer className="w-3.5 h-3.5 text-emerald-400" />
+              <span>PDF / Print Summary</span>
+            </button>
+
             {onDispatchToPolice && (
               <button
                 onClick={() => {
@@ -272,35 +288,7 @@ export const TargetProfileModal: React.FC<TargetProfileModalProps> = ({
 
           {/* Tab Content Display */}
           {activeTab === 'biometrics' && (
-            <div className="rounded-xl bg-slate-900/60 border border-slate-800 p-4 space-y-4">
-              <h4 className="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
-                <Fingerprint className="w-4 h-4" />
-                CENTRALIZED BIOMETRIC REGISTRY VECTOR SIGNATURES
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-                  <span className="text-slate-500 text-[10px] block">IRIS PATTERN HASH</span>
-                  <span className="text-cyan-300 font-mono text-[11px] break-all">{subject.biometrics.irisHash}</span>
-                </div>
-                <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-                  <span className="text-slate-500 text-[10px] block">VOICEPRINT HARMONICS</span>
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className="flex-1 bg-slate-800 h-2 rounded-full overflow-hidden">
-                      <div
-                        className="bg-cyan-400 h-full rounded-full"
-                        style={{ width: `${subject.biometrics.voiceprintHarmonicScore}%` }}
-                      />
-                    </div>
-                    <span className="text-cyan-400 font-bold">{subject.biometrics.voiceprintHarmonicScore}%</span>
-                  </div>
-                </div>
-                <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-                  <span className="text-slate-500 text-[10px] block">GAIT CADENCE ANALYSIS</span>
-                  <span className="text-emerald-400 font-bold">{subject.biometrics.gaitCadenceFrequency} Hz</span>
-                  <span className="text-[10px] text-slate-500 block">Matched to CCTV Cam #01</span>
-                </div>
-              </div>
-            </div>
+            <BiometricRadarComparison subject={subject} />
           )}
 
           {activeTab === 'financial' && (
@@ -417,6 +405,13 @@ export const TargetProfileModal: React.FC<TargetProfileModalProps> = ({
           )}
         </div>
       </div>
+
+      {/* Quick Print-Friendly PDF Summary Modal */}
+      <PrintSummaryModal
+        subject={subject}
+        isOpen={isPrintSummaryOpen}
+        onClose={() => setIsPrintSummaryOpen(false)}
+      />
     </div>
   );
 };
