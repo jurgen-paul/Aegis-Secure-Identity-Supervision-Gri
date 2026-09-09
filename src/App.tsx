@@ -45,6 +45,7 @@ import { MerkleExplorer } from './components/AuditTrail/MerkleExplorer';
 import { GoogleDocsExportModal } from './components/AuditTrail/GoogleDocsExportModal';
 import { ContainmentControl } from './components/AlertProtocols/ContainmentControl';
 import { GeminiThreatAnalyzer } from './components/AIIntelligence/GeminiThreatAnalyzer';
+import { BiometricActivityLog } from './components/AIIntelligence/BiometricActivityLog';
 import { GoogleTasksManager } from './components/GoogleTasks/GoogleTasksManager';
 import { SecurityChatbot } from './components/SecurityBot/SecurityChatbot';
 import { OpenSSFAssurancePortal } from './components/OpenSSFCompliance/OpenSSFAssurancePortal';
@@ -519,7 +520,7 @@ export default function App() {
           </div>
         )}
 
-        {/* VIEW 6: AI Threat Assessment */}
+        {/* VIEW 6: AI Threat Assessment & Biometrics */}
         {activeTab === 'ai-intel' && (
           <div className="space-y-6 animate-fadeIn">
             <GeminiThreatAnalyzer
@@ -527,6 +528,11 @@ export default function App() {
               selectedSubject={selectedSubject}
               onSelectSubject={(sub) => setSelectedSubject(sub)}
               onOpenDocsExport={() => setIsDocsExportOpen(true)}
+            />
+            <BiometricActivityLog
+              subjects={subjects}
+              selectedSubject={selectedSubject}
+              onSelectSubject={(sub) => setSelectedSubject(sub)}
             />
           </div>
         )}

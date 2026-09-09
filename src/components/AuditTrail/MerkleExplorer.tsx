@@ -39,6 +39,7 @@ export const MerkleExplorer: React.FC<MerkleExplorerProps> = ({ blocks, onOpenDo
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false);
+  const [csvNotification, setCsvNotification] = useState<{ count: number; timestamp: string } | null>(null);
 
   // Filtered blocks based on search and category
   const filteredBlocks = useMemo(() => {
@@ -145,6 +146,76 @@ export const MerkleExplorer: React.FC<MerkleExplorerProps> = ({ blocks, onOpenDo
     window.print();
   };
 
+  const handleDownloadCsv = () => {
+    soundFx.playClick();
+
+    // Use current immutable block history (filtered if filters are active, or all blocks)
+    const targetBlocks = filteredBlocks.length > 0 ? filteredBlocks : blocks;
+
+    // Forensic CSV headers covering all immutable cryptographic attributes
+    const headers = [
+      'Block Height',
+      'Timestamp (UTC)',
+      'Status',
+      'Action Category',
+      'Subject DID',
+      'Actor Node ID',
+      'Payload Summary',
+      'Block Hash (SHA-256)',
+      'Previous Block Hash',
+      'Merkle Root',
+      'Cryptographic Signature',
+    ];
+
+    const escapeCell = (val: string | number | undefined | null): string => {
+      if (val === undefined || val === null) return '""';
+      const str = String(val);
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+
+    const rows = targetBlocks.map((b) => [
+      escapeCell(b.blockHeight),
+      escapeCell(b.timestamp),
+      escapeCell(b.status),
+      escapeCell(b.action),
+      escapeCell(b.subjectDid),
+      escapeCell(b.actorNodeId),
+      escapeCell(b.payloadSummary),
+      escapeCell(b.hash),
+      escapeCell(b.previousHash),
+      escapeCell(b.merkleRoot),
+      escapeCell(b.signature),
+    ]);
+
+    const csvBody = [
+      headers.map((h) => `"${h}"`).join(','),
+      ...rows.map((row) => row.join(',')),
+    ].join('\r\n');
+
+    // Include UTF-8 BOM for compatibility with Microsoft Excel, numbers, and forensic tooling
+    const blob = new Blob(['\uFEFF' + csvBody], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const timestampStr = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `aegis-audit-trail-history-${timestampStr}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setCsvNotification({
+      count: targetBlocks.length,
+      timestamp: new Date().toLocaleTimeString(),
+    });
+    setTimeout(() => {
+      setCsvNotification(null);
+    }, 4500);
+
+    soundFx.playDecrypt();
+  };
+
   return (
     <div className="space-y-6 font-mono">
       {/* Header Banner */}
@@ -194,6 +265,20 @@ export const MerkleExplorer: React.FC<MerkleExplorerProps> = ({ blocks, onOpenDo
               <span>Download PDF Report</span>
             </button>
 
+            {/* Download Audit Audit Trail CSV */}
+            <button
+              type="button"
+              id="download-audit-trail-csv"
+              data-testid="download-audit-trail-csv"
+              onClick={handleDownloadCsv}
+              className="px-3.5 py-2 rounded-lg bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-600/80 text-emerald-300 hover:text-white transition-all text-xs font-bold flex items-center gap-2 cursor-pointer shadow-md active:scale-95"
+              title="Download Audit Audit Trail CSV - Export current immutable block history"
+              aria-label="Download Audit Audit Trail CSV"
+            >
+              <Download className="w-4 h-4 text-emerald-400" />
+              <span>Download Audit Audit Trail CSV</span>
+            </button>
+
             {/* Google Docs Export */}
             <button
               type="button"
@@ -216,6 +301,29 @@ export const MerkleExplorer: React.FC<MerkleExplorerProps> = ({ blocks, onOpenDo
             <div className="text-[11px] text-slate-300 break-all">
               Calculated Merkle Root: {verificationResult.computedRoot}
             </div>
+          </div>
+        )}
+
+        {/* CSV Export Success Toast */}
+        {csvNotification && (
+          <div className="p-3.5 rounded-lg bg-emerald-950/90 border border-emerald-500/70 text-xs text-emerald-300 space-y-1 animate-fadeIn flex items-center justify-between shadow-lg">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <div>
+                <span className="font-bold">FORENSIC AUDIT TRAIL CSV EXPORTED</span>
+                <span className="text-slate-300 ml-2">
+                  ({csvNotification.count} immutable blocks downloaded at {csvNotification.timestamp})
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCsvNotification(null)}
+              className="text-slate-400 hover:text-white cursor-pointer p-1"
+              title="Dismiss notification"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         )}
 

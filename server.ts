@@ -661,6 +661,8 @@ app.post("/api/security-assurance/submit-vulnerability", (req, res) => {
   });
 });
 
+app.use("/assets", express.static(path.join(process.cwd(), "assets")));
+
 async function startServer() {
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

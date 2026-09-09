@@ -7,6 +7,7 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import { INITIAL_BIOMETRIC_EVENTS } from '../lib/mockData';
 
 describe('AEGIS OpenSSF Security Assurance Test Suite', () => {
   describe('1. Cryptographic Practices & Zero Broken Primitives', () => {
@@ -100,6 +101,25 @@ describe('AEGIS OpenSSF Security Assurance Test Suite', () => {
 
       assert.strictEqual(cleanInput, 'alert("xss")192.168.1.1');
       assert.ok(!cleanInput.includes('<script>'), 'Script tags must be stripped');
+    });
+  });
+
+  describe('6. Biometric Activity Log & Multi-Modal Signature Verification', () => {
+    test('Validates presence and cryptographic attributes of Iris, Gait, and Voiceprint captures', () => {
+      assert.ok(Array.isArray(INITIAL_BIOMETRIC_EVENTS) && INITIAL_BIOMETRIC_EVENTS.length > 0);
+
+      const modalities = new Set(INITIAL_BIOMETRIC_EVENTS.map((e: any) => e.modality));
+      assert.ok(modalities.has('IRIS_SCAN'), 'Must capture Iris scan events');
+      assert.ok(modalities.has('GAIT_DYNAMICS'), 'Must capture Gait dynamics events');
+      assert.ok(modalities.has('VOICEPRINT_SIGNATURE'), 'Must capture Voiceprint signature events');
+
+      // Verify each event has signature hash and matchScore
+      for (const evt of INITIAL_BIOMETRIC_EVENTS) {
+        assert.ok(evt.id.startsWith('BIO-EVT-'), 'Valid event ID prefix');
+        assert.ok(evt.signatureHash.startsWith('0x'), 'Cryptographic hash format');
+        assert.ok(typeof evt.matchScore === 'number' && evt.matchScore > 0 && evt.matchScore <= 100);
+        assert.ok(evt.tamperProofProofId.startsWith('PROOF-ED25519-'), 'Tamper-proof proof format');
+      }
     });
   });
 });

@@ -511,6 +511,44 @@ export const OpenSSFAssurancePortal: React.FC = () => {
       {/* VIEW 1: 19-Criteria Matrix */}
       {activeAssuranceTab === 'criteria' && (
         <div className="space-y-4">
+          {/* Tactical Threat, Breach & Stolen ID Fraud Detection Matrix */}
+          <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-400" />
+                <span className="text-xs font-bold font-mono text-white">
+                  TACTICAL BREACH, STOLEN ID FRAUD DETECTION & CRIME LOCATOR MATRIX
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-950/80 border border-rose-600 text-rose-300 font-bold">
+                  ALERT: ACTIVE BREACH
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-950/80 border border-amber-600 text-amber-300 font-bold">
+                  FRAUD INTERCEPT
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-600 text-cyan-300 font-bold">
+                  locatorbyimageID
+                </span>
+              </div>
+            </div>
+
+            <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-slate-950">
+              <img
+                src="/assets/cyber_breach_locator.jpg"
+                alt="Aegis Threat Alert, Breach & Stolen ID Fraud Detection Matrix with Image ID Locator"
+                referrerPolicy="no-referrer"
+                className="w-full max-h-[280px] object-cover object-center"
+              />
+              <div className="p-3 bg-slate-950/95 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
+                <div className="text-slate-300">
+                  <span className="text-emerald-400 font-bold">● AI Biometric Locator Active:</span> 3D facial landmark mesh matched suspect DID against stolen credential registry in real time.
+                </div>
+                <span className="text-slate-400 text-[10px]">Documented in README.md</span>
+              </div>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold font-mono text-slate-200 flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />

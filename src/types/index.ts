@@ -56,6 +56,35 @@ export interface BiometricMarker {
   govDatabaseStatus: 'VERIFIED_CITIZEN' | 'WATCHLIST_RED_NOTICE' | 'CLASSIFIED_OPERATIVE' | 'SOVEREIGN_EXEMPT';
 }
 
+export type BiometricModality = 'IRIS_SCAN' | 'GAIT_DYNAMICS' | 'VOICEPRINT_SIGNATURE' | 'FACIAL_VECTOR';
+
+export interface BiometricAuthEvent {
+  id: string;
+  subjectId: string;
+  subjectDid: string;
+  timestamp: string;
+  modality: BiometricModality;
+  sensorNodeId: string;
+  sensorLocation: string;
+  matchScore: number; // e.g. 98.6%
+  status: 'AUTHENTICATED' | 'ANOMALY_DETECTED' | 'SPOOF_REJECTED' | 'FLAGGED_MISMATCH';
+  signatureHash: string; // Cryptographic biometric hash
+  details: {
+    irisPatternSector?: string;
+    retinalPupilRatio?: number;
+    cadenceFrequencyHz?: number;
+    strideSymmetryPct?: number;
+    accelerationProfile?: string;
+    harmonicPitchHz?: number;
+    spectralResonanceDb?: number;
+    formantFrequencies?: number[];
+    livenessScore?: number;
+    environmentalNoiseDb?: number;
+  };
+  tamperProofProofId: string;
+  notes: string;
+}
+
 export interface TrackedSubject {
   id: string;
   fullName: string;
