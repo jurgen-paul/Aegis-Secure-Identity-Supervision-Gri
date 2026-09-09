@@ -12,6 +12,7 @@ import {
   Activity,
   Server,
   RefreshCw,
+  ListTodo,
 } from 'lucide-react';
 import { soundFx } from '../lib/audio';
 
@@ -24,6 +25,7 @@ interface HeaderProps {
   onSimulateBreach: () => void;
   onToggleLockdown: () => void;
   isLockdownActive: boolean;
+  onOpenTasks?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -35,6 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSimulateBreach,
   onToggleLockdown,
   isLockdownActive,
+  onOpenTasks,
 }) => {
   const toggleAudio = () => {
     const nextMute = !isMuted;

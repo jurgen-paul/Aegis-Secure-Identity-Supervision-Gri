@@ -51,28 +51,97 @@
 
 /* Print-Friendly Styles for Intelligence PDF Summaries */
 @media print {
+  @page {
+    margin: 12mm 10mm 12mm 10mm;
+    size: A4 portrait;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
   body * {
     visibility: hidden;
   }
+
   #printable-summary-sheet,
   #printable-summary-sheet * {
     visibility: visible;
   }
+
   #printable-summary-sheet {
+    display: block !important;
     position: absolute;
     left: 0;
     top: 0;
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
-    padding: 20px !important;
+    padding: 0 !important;
     background: #ffffff !important;
-    color: #000000 !important;
+    color: #0f172a !important;
     box-shadow: none !important;
     border: none !important;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+    font-size: 11px;
+    line-height: 1.4;
   }
+
   .no-print {
     display: none !important;
   }
+
+  tr, .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  th, td {
+    border-color: #cbd5e1 !important;
+  }
 }
+
+/* Google Sign-in Material Button Styles */
+.gsi-material-button {
+  user-select: none;
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: #f1f5f9;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  height: 38px;
+  letter-spacing: 0.2px;
+  outline: none;
+  overflow: hidden;
+  padding: 0 14px;
+  position: relative;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.2s ease;
+}
+
+.gsi-material-button:hover {
+  background-color: #1e293b;
+  border-color: #38bdf8;
+  color: #ffffff;
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+}
+
+.gsi-material-button:active {
+  transform: scale(0.98);
+}
+

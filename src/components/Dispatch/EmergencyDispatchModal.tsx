@@ -38,21 +38,27 @@ import {
 } from 'lucide-react';
 
 interface EmergencyDispatchModalProps {
+  isOpen?: boolean;
   subject: TrackedSubject | null;
   alert?: ActiveAlertLog | null;
   onClose: () => void;
-  onDispatchSuccess: (packet: ThreatDispatchPacket) => void;
+  onDispatchSuccess?: (packet: ThreatDispatchPacket) => void;
+  onDispatchSent?: (packet: ThreatDispatchPacket) => void;
+  policeStations?: PoliceStation[];
   dispatchHistory?: ThreatDispatchPacket[];
 }
 
 export const EmergencyDispatchModal: React.FC<EmergencyDispatchModalProps> = ({
+  isOpen = true,
   subject,
   alert,
   onClose,
   onDispatchSuccess,
+  onDispatchSent,
+  policeStations,
   dispatchHistory = [],
 }) => {
-  if (!subject) return null;
+  if (!subject || !isOpen) return null;
 
   const [rankedStations, setRankedStations] = useState<PoliceStation[]>([]);
   const [selectedStationId, setSelectedStationId] = useState<string>('');
@@ -73,12 +79,14 @@ export const EmergencyDispatchModal: React.FC<EmergencyDispatchModalProps> = ({
   ]);
   const [newDirective, setNewDirective] = useState<string>('');
 
+  const stationsPool = policeStations && policeStations.length > 0 ? policeStations : POLICE_STATIONS;
+
   // Calculate nearby stations ranked by proximity
   useEffect(() => {
     if (subject) {
       const ranked = getStationsRankedByProximity(
         subject.currentLocation,
-        POLICE_STATIONS,
+        stationsPool,
         selectedPriority === 'PRIORITY_1_CODE_RED'
       );
       setRankedStations(ranked);
@@ -86,10 +94,10 @@ export const EmergencyDispatchModal: React.FC<EmergencyDispatchModalProps> = ({
         setSelectedStationId(ranked[0].id);
       }
     }
-  }, [subject, selectedPriority]);
+  }, [subject, selectedPriority, stationsPool]);
 
   const selectedStation =
-    rankedStations.find((s) => s.id === selectedStationId) || rankedStations[0] || POLICE_STATIONS[0];
+    rankedStations.find((s) => s.id === selectedStationId) || rankedStations[0] || stationsPool[0];
 
   // Initialize standardized radio transcript
   useEffect(() => {
@@ -187,7 +195,12 @@ TACTICAL DIRECTIVE: IMMEDIATE CORDON & TURNSTILE SHUTDOWN.`;
       await new Promise((r) => setTimeout(r, 600));
 
       setDispatchedPacket(packet);
-      onDispatchSuccess(packet);
+      if (typeof onDispatchSuccess === 'function') {
+        onDispatchSuccess(packet);
+      }
+      if (typeof onDispatchSent === 'function') {
+        onDispatchSent(packet);
+      }
     } catch (e) {
       console.error('Dispatch transmission error:', e);
     } finally {

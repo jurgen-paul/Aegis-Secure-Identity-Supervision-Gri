@@ -10,6 +10,7 @@ import {
   ActiveAlertLog,
   ThreatDispatchPacket,
   MostWantedFugitive,
+  IPTrackerRecord,
 } from './types';
 import {
   INITIAL_TRACKED_SUBJECTS,
@@ -23,6 +24,7 @@ import {
   POLICE_STATIONS,
   INITIAL_DISPATCH_HISTORY,
   MOST_WANTED_LIST,
+  INITIAL_IP_TRACKER_RECORDS,
 } from './lib/mockData';
 import { Header } from './components/Header';
 import { Navigation, ActiveTab } from './components/Navigation';
@@ -33,6 +35,7 @@ import { FinancialTransitStream } from './components/GodsEyeViewer/FinancialTran
 import { ActiveAlertsPanel } from './components/GodsEyeViewer/ActiveAlertsPanel';
 import { EmergencyDispatchModal } from './components/Dispatch/EmergencyDispatchModal';
 import { MostWantedList } from './components/MostWanted/MostWantedList';
+import { IPAddressTracker } from './components/IPTracker/IPAddressTracker';
 import { DIDKeyring } from './components/DecentralizedIdentity/DIDKeyring';
 import { VerifiableCredentials } from './components/DecentralizedIdentity/VerifiableCredentials';
 import { ZKPVerifier } from './components/DecentralizedIdentity/ZKPVerifier';
@@ -61,6 +64,7 @@ export default function App() {
   const [activeAlerts, setActiveAlerts] = useState<ActiveAlertLog[]>(INITIAL_ACTIVE_ALERTS);
   const [dispatchHistory, setDispatchHistory] = useState<ThreatDispatchPacket[]>(INITIAL_DISPATCH_HISTORY);
   const [fugitives, setFugitives] = useState<MostWantedFugitive[]>(MOST_WANTED_LIST);
+  const [ipRecords, setIpRecords] = useState<IPTrackerRecord[]>(INITIAL_IP_TRACKER_RECORDS);
 
   // Modals & Selected Subject
   const [selectedSubject, setSelectedSubject] = useState<TrackedSubject | null>(null);
@@ -392,6 +396,30 @@ export default function App() {
           </div>
         )}
 
+        {/* VIEW: IP Address Tracker (Search by Name, DOB, City, Village, Country) */}
+        {activeTab === 'ip-tracker' && (
+          <div className="space-y-6 animate-fadeIn">
+            <IPAddressTracker
+              records={ipRecords}
+              subjects={subjects}
+              onSelectTrackSubject={(subjectId) => {
+                const targetSub = subjects.find((s) => s.id === subjectId) || subjects[0];
+                setSelectedSubject(targetSub);
+                setActiveTab('gods-eye');
+              }}
+              onDispatchPolice={(subjectId) => {
+                const targetSub = subjects.find((s) => s.id === subjectId) || subjects[0];
+                handleOpenDispatchModal(targetSub);
+              }}
+              onRequestAIDossier={(subjectId) => {
+                const targetSub = subjects.find((s) => s.id === subjectId) || subjects[0];
+                setSelectedSubject(targetSub);
+                setActiveTab('ai-intel');
+              }}
+            />
+          </div>
+        )}
+
         {/* VIEW 2: Global Most Wanted Fugitives List (FBI, Interpol, MI6, Europol) */}
         {activeTab === 'most-wanted' && (
           <div className="space-y-6 animate-fadeIn">
@@ -510,6 +538,10 @@ export default function App() {
           subject={dispatchModalTarget.subject}
           alert={dispatchModalTarget.alert}
           policeStations={POLICE_STATIONS}
+          dispatchHistory={dispatchHistory}
+          onDispatchSuccess={(packet) => {
+            handleDispatchComplete(packet, dispatchModalTarget.alert);
+          }}
           onDispatchSent={(packet) => {
             handleDispatchComplete(packet, dispatchModalTarget.alert);
           }}

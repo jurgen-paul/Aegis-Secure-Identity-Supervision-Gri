@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActiveAlertLog, TrackedSubject, PoliceStation, ThreatDispatchPacket } from '../../types';
+import { ActiveAlertLog, TrackedSubject, PoliceStation, ThreatDispatchPacket, AlertPriority } from '../../types';
 import {
   AlertTriangle,
   ShieldAlert,
@@ -19,6 +19,9 @@ import {
   ChevronUp,
   FileCheck2,
   Flame,
+  Filter,
+  SlidersHorizontal,
+  AlertCircle,
 } from 'lucide-react';
 import { soundFx } from '../../lib/audio';
 import { POLICE_STATIONS } from '../../lib/mockData';
@@ -59,6 +62,41 @@ export const ActiveAlertsPanel: React.FC<ActiveAlertsPanelProps> = ({
   const [activeSimulations, setActiveSimulations] = useState<Record<string, DispatchSimulationState>>({});
   const [expandedTransmissions, setExpandedTransmissions] = useState<Record<string, boolean>>({});
   const [speakingAlertId, setSpeakingAlertId] = useState<string | null>(null);
+  const [priorityFilter, setPriorityFilter] = useState<'ALL' | 'CRITICAL' | 'ADVISORY'>('ALL');
+
+  // Classification helper to determine priority level for any alert
+  const getAlertPriority = (alert: ActiveAlertLog): AlertPriority => {
+    if (alert.priorityLevel) return alert.priorityLevel;
+    if (alert.severity === 'CRITICAL_CODE_RED' || alert.severity === 'HIGH') {
+      return 'CRITICAL';
+    }
+    return 'ADVISORY';
+  };
+
+  const criticalCount = unresolvedAlerts.filter((a) => getAlertPriority(a) === 'CRITICAL').length;
+  const advisoryCount = unresolvedAlerts.filter((a) => getAlertPriority(a) === 'ADVISORY').length;
+
+  // Filtered alerts according to priority toggle selection
+  const displayedAlerts = unresolvedAlerts.filter((a) => {
+    if (priorityFilter === 'ALL') return true;
+    return getAlertPriority(a) === priorityFilter;
+  });
+
+  const handleTogglePriority = (priority: 'CRITICAL' | 'ADVISORY') => {
+    soundFx.playClick();
+    if (priorityFilter === priority) {
+      // Toggling the active priority off reverts to displaying all alerts
+      setPriorityFilter('ALL');
+    } else {
+      // Toggle to viewing chosen priority level independently
+      setPriorityFilter(priority);
+    }
+  };
+
+  const handleSelectAll = () => {
+    soundFx.playClick();
+    setPriorityFilter('ALL');
+  };
 
   // Helper to trigger rapid response dispatch simulation
   const handleDispatchRapidResponse = async (alert: ActiveAlertLog, subject?: TrackedSubject) => {
@@ -178,22 +216,157 @@ export const ActiveAlertsPanel: React.FC<ActiveAlertsPanelProps> = ({
         </div>
       </div>
 
+      {/* Tactical Priority Filter Control Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg bg-slate-900/90 border border-slate-800 shadow-inner">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center gap-1.5 text-slate-400 text-xs font-bold tracking-wide">
+            <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-400" />
+            <span>PRIORITY FILTER:</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800/90 p-1 rounded-lg">
+            {/* View All */}
+            <button
+              id="alert-filter-all-btn"
+              onClick={handleSelectAll}
+              className={`px-3 py-1 rounded text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                priorityFilter === 'ALL'
+                  ? 'bg-slate-800 text-white shadow-sm border border-slate-600'
+                  : 'text-slate-400 hover:text-slate-200 border border-transparent'
+              }`}
+              title="Show all active incident alerts"
+            >
+              <span>ALL</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                priorityFilter === 'ALL' ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400'
+              }`}>
+                {unresolvedAlerts.length}
+              </span>
+            </button>
+
+            {/* Toggle Critical Independently */}
+            <button
+              id="alert-filter-critical-btn"
+              onClick={() => handleTogglePriority('CRITICAL')}
+              className={`px-3 py-1 rounded text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                priorityFilter === 'CRITICAL'
+                  ? 'bg-red-950 text-red-100 border border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.4)]'
+                  : 'text-slate-400 hover:text-red-300 border border-transparent hover:bg-red-950/30'
+              }`}
+              title="Toggle viewing Critical level alerts independently"
+            >
+              <ShieldAlert className={`w-3.5 h-3.5 ${priorityFilter === 'CRITICAL' ? 'text-red-400 animate-pulse' : 'text-slate-500'}`} />
+              <span>CRITICAL</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                priorityFilter === 'CRITICAL'
+                  ? 'bg-red-900 border border-red-600 text-red-100'
+                  : 'bg-slate-900 border border-slate-700 text-slate-400'
+              }`}>
+                {criticalCount}
+              </span>
+            </button>
+
+            {/* Toggle Advisory Independently */}
+            <button
+              id="alert-filter-advisory-btn"
+              onClick={() => handleTogglePriority('ADVISORY')}
+              className={`px-3 py-1 rounded text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                priorityFilter === 'ADVISORY'
+                  ? 'bg-amber-950 text-amber-100 border border-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.4)]'
+                  : 'text-slate-400 hover:text-amber-300 border border-transparent hover:bg-amber-950/30'
+              }`}
+              title="Toggle viewing Advisory level alerts independently"
+            >
+              <AlertTriangle className={`w-3.5 h-3.5 ${priorityFilter === 'ADVISORY' ? 'text-amber-400' : 'text-slate-500'}`} />
+              <span>ADVISORY</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                priorityFilter === 'ADVISORY'
+                  ? 'bg-amber-900 border border-amber-600 text-amber-100'
+                  : 'bg-slate-900 border border-slate-700 text-slate-400'
+              }`}>
+                {advisoryCount}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Dynamic Status / Independent View Indicator */}
+        <div className="flex items-center gap-2 text-[11px]">
+          {priorityFilter !== 'ALL' ? (
+            <div className="flex items-center gap-2">
+              <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold border flex items-center gap-1.5 ${
+                priorityFilter === 'CRITICAL'
+                  ? 'bg-red-950/80 border-red-600 text-red-300'
+                  : 'bg-amber-950/80 border-amber-600 text-amber-300'
+              }`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
+                <span>Viewing {priorityFilter} Alerts Independently ({displayedAlerts.length})</span>
+              </span>
+              <button
+                onClick={handleSelectAll}
+                className="text-cyan-400 hover:text-cyan-300 text-[10px] underline cursor-pointer"
+              >
+                Reset to All
+              </button>
+            </div>
+          ) : (
+            <span className="text-slate-500 text-[10px] hidden sm:flex items-center gap-1">
+              <span>Displaying all priority tiers ({unresolvedAlerts.length} total)</span>
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* Unresolved Incident List */}
       <div className="space-y-3 max-h-[32rem] overflow-y-auto pr-1">
-        {unresolvedAlerts.length === 0 ? (
-          <div className="p-8 text-center text-xs text-emerald-400 flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-900/40 border border-emerald-900/50">
-            <CheckCircle2 className="w-8 h-8 text-emerald-400" />
-            <span className="font-bold">All secure sectors nominal.</span>
-            <span className="text-slate-500 text-[11px]">No active geofence breaches or unauthorized transit departures.</span>
-          </div>
+        {displayedAlerts.length === 0 ? (
+          unresolvedAlerts.length === 0 ? (
+            <div className="p-8 text-center text-xs text-emerald-400 flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-900/40 border border-emerald-900/50">
+              <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+              <span className="font-bold">All secure sectors nominal.</span>
+              <span className="text-slate-500 text-[11px]">No active geofence breaches or unauthorized transit departures.</span>
+            </div>
+          ) : priorityFilter === 'CRITICAL' ? (
+            <div className="p-8 text-center text-xs text-slate-300 flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-900/40 border border-slate-800">
+              <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+              <span className="font-bold text-white">No Active Critical Level Incidents</span>
+              <span className="text-slate-400 text-[11px]">No active geofence boundary breaches or high-threat Code Red events.</span>
+              {advisoryCount > 0 && (
+                <button
+                  onClick={() => handleTogglePriority('ADVISORY')}
+                  className="mt-2 px-3 py-1.5 rounded-lg bg-amber-950/80 border border-amber-700 text-amber-300 text-xs font-bold hover:bg-amber-900 cursor-pointer flex items-center gap-1.5"
+                >
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Toggle to Advisory Incidents ({advisoryCount})</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="p-8 text-center text-xs text-slate-300 flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-900/40 border border-slate-800">
+              <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+              <span className="font-bold text-white">No Active Advisory Level Incidents</span>
+              <span className="text-slate-400 text-[11px]">All secondary telemetry and sensor node correlation metrics are within normal variance.</span>
+              {criticalCount > 0 && (
+                <button
+                  onClick={() => handleTogglePriority('CRITICAL')}
+                  className="mt-2 px-3 py-1.5 rounded-lg bg-red-950/80 border border-red-700 text-red-300 text-xs font-bold hover:bg-red-900 cursor-pointer flex items-center gap-1.5"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
+                  <span>Toggle to Critical Incidents ({criticalCount})</span>
+                </button>
+              )}
+            </div>
+          )
         ) : (
-          unresolvedAlerts.map((alt) => {
+          displayedAlerts.map((alt) => {
             const sub = subjects.find((s) => s.id === alt.subjectId) || subjects[0];
             const sim = activeSimulations[alt.id];
             const isDispatched = alt.dispatchedToStationId || sim?.step === 'CONFIRMED';
             const isSimulating = sim && sim.step !== 'IDLE' && sim.step !== 'CONFIRMED';
             const nearestStation = sim?.station || findNearestPoliceStation(sub.currentLocation, POLICE_STATIONS);
             const isExpanded = expandedTransmissions[alt.id];
+            const priority = getAlertPriority(alt);
+            const isCritical = priority === 'CRITICAL';
 
             return (
               <div
@@ -201,18 +374,34 @@ export const ActiveAlertsPanel: React.FC<ActiveAlertsPanelProps> = ({
                 className={`p-4 rounded-xl border text-xs space-y-3 relative overflow-hidden transition-all ${
                   isDispatched
                     ? 'bg-emerald-950/20 border-emerald-700/80 shadow-[0_0_20px_rgba(16,185,129,0.15)]'
-                    : 'bg-red-950/25 border-red-800/80 hover:border-red-600/90 shadow-[0_0_15px_rgba(239,68,68,0.15)]'
+                    : isCritical
+                    ? 'bg-red-950/25 border-red-800/80 hover:border-red-600/90 shadow-[0_0_15px_rgba(239,68,68,0.15)]'
+                    : 'bg-amber-950/20 border-amber-800/80 hover:border-amber-600/90 shadow-[0_0_15px_rgba(245,158,11,0.15)]'
                 }`}
               >
                 {/* Top Alert Status Bar */}
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="space-y-1.5 flex-1 min-w-[240px]">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-bold text-red-300 text-xs tracking-wide">
+                      <span className={`font-bold text-xs tracking-wide ${isCritical ? 'text-red-300' : 'text-amber-200'}`}>
                         {alt.title}
                       </span>
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-red-600 text-white font-bold animate-pulse">
-                        {alt.severity}
+                      <span className={`text-[10px] px-2 py-0.5 rounded font-bold flex items-center gap-1 ${
+                        isCritical
+                          ? 'bg-red-600 text-white animate-pulse'
+                          : 'bg-amber-500/20 border border-amber-500 text-amber-300'
+                      }`}>
+                        {isCritical ? (
+                          <>
+                            <ShieldAlert className="w-3 h-3" />
+                            <span>CRITICAL // {alt.severity}</span>
+                          </>
+                        ) : (
+                          <>
+                            <AlertTriangle className="w-3 h-3 text-amber-400" />
+                            <span>ADVISORY // {alt.severity}</span>
+                          </>
+                        )}
                       </span>
                       {isDispatched && (
                         <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-900/90 border border-emerald-500 text-emerald-200 font-bold flex items-center gap-1">
@@ -257,7 +446,9 @@ export const ActiveAlertsPanel: React.FC<ActiveAlertsPanelProps> = ({
                           ? 'bg-amber-600 text-white border border-amber-400 animate-pulse'
                           : isDispatched
                           ? 'bg-emerald-700 hover:bg-emerald-600 text-white border border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)]'
-                          : 'bg-gradient-to-r from-red-600 via-red-500 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white border border-red-400 shadow-[0_0_15px_rgba(239,68,68,0.5)] animate-pulse'
+                          : isCritical
+                          ? 'bg-gradient-to-r from-red-600 via-red-500 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white border border-red-400 shadow-[0_0_15px_rgba(239,68,68,0.5)] animate-pulse'
+                          : 'bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white border border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
                       }`}
                     >
                       {isSimulating ? (
@@ -270,7 +461,9 @@ export const ActiveAlertsPanel: React.FC<ActiveAlertsPanelProps> = ({
                           ? 'DISPATCHING...'
                           : isDispatched
                           ? 'Re-Dispatch Units'
-                          : 'Dispatch Rapid Response'}
+                          : isCritical
+                          ? 'Dispatch Rapid Response'
+                          : 'Dispatch Law Enforcement'}
                       </span>
                     </button>
 

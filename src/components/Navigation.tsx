@@ -7,9 +7,11 @@ import {
   BellRing,
   Cpu,
   Flame,
+  Network,
+  ListTodo,
 } from 'lucide-react';
 
-export type ActiveTab = 'gods-eye' | 'most-wanted' | 'did-vault' | 'e2ee-mesh' | 'audit-dag' | 'containment' | 'ai-intel';
+export type ActiveTab = 'gods-eye' | 'ip-tracker' | 'most-wanted' | 'did-vault' | 'e2ee-mesh' | 'audit-dag' | 'containment' | 'ai-intel' | 'google-tasks';
 
 interface NavigationProps {
   activeTab: ActiveTab;
@@ -32,6 +34,13 @@ export const Navigation: React.FC<NavigationProps> = ({
       icon: Eye,
       badge: null,
       highlight: true,
+    },
+    {
+      id: 'ip-tracker' as ActiveTab,
+      label: 'IP Address Tracker',
+      subLabel: 'Name • DOB • Village • City',
+      icon: Network,
+      badge: 'Live Locator',
     },
     {
       id: 'most-wanted' as ActiveTab,
@@ -76,6 +85,13 @@ export const Navigation: React.FC<NavigationProps> = ({
       subLabel: 'Gemini Anomaly Intel',
       icon: Cpu,
       badge: 'AI Powered',
+    },
+    {
+      id: 'google-tasks' as ActiveTab,
+      label: 'Google Tasks',
+      subLabel: 'Tactical Directives',
+      icon: ListTodo,
+      badge: 'Tasks API',
     },
   ];
 

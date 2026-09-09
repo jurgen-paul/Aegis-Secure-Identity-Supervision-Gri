@@ -176,6 +176,8 @@ export interface AutomatedAlertRule {
   lastTriggered?: string;
 }
 
+export type AlertPriority = 'CRITICAL' | 'ADVISORY';
+
 export interface ActiveAlertLog {
   id: string;
   ruleId: string;
@@ -183,6 +185,7 @@ export interface ActiveAlertLog {
   subjectName: string;
   subjectId: string;
   severity: ThreatLevel;
+  priorityLevel?: AlertPriority;
   timestamp: string;
   locationDetails: string;
   details: string;
@@ -288,4 +291,83 @@ export interface ThreatDispatchPacket {
   sha256Seal: string;
   estimatedResponseTimeSeconds: number;
   assignedPatrolUnits: string[];
+}
+
+export interface IPTrackerRecord {
+  id: string;
+  ipAddress: string;
+  ipType: 'IPv4' | 'IPv6';
+  status: 'ACTIVE_TELEMETRY' | 'RECENT_BURST' | 'DORMANT_RESERVE' | 'PROXY_FLAGGED';
+  
+  // Demographics matching user search criteria
+  subjectId: string;
+  fullName: string;
+  alias: string;
+  dateOfBirth: string; // YYYY-MM-DD
+  age: number;
+  gender?: string;
+  villageOrDistrict: string; // Village, Borough, or Suburb
+  city: string;
+  country: string;
+  postalCode?: string;
+  registeredAddress?: string;
+
+  // Network & Routing Telemetry
+  isp: string;
+  asn: string;
+  organization: string;
+  hostname: string;
+  connectionType: 'FIBER_OPTIC' | 'CELLULAR_5G' | 'SATELLITE_UPLINK' | 'PUBLIC_WIFI_HOTSPOT' | 'SECURE_VPN_TUNNEL';
+  isVpnOrProxy: boolean;
+  isTorExitNode: boolean;
+  vpnService?: string;
+
+  // Geolocation & Mesh Anchoring
+  coordinates: {
+    lat: number;
+    lng: number;
+    altitudeMeters: number;
+    accuracyRadiusMeters: number;
+    meshCellId: string;
+    nearestSurveillanceNodeId: string;
+    nearestSurveillanceNodeName: string;
+  };
+
+  // Real-time Telemetry
+  lastTelemetryPing: string;
+  latencyMs: number;
+  packetThroughputKbps: number;
+  threatLevel: ThreatLevel;
+  associatedMacAddress: string;
+  deviceInfo: {
+    deviceType: string;
+    os: string;
+    browser: string;
+    userAgent: string;
+    fingerprintHash: string;
+  };
+  openPorts: number[];
+  routeHops: {
+    hop: number;
+    ip: string;
+    host: string;
+    latencyMs: number;
+    location: string;
+  }[];
+  recentActivity: {
+    timestamp: string;
+    action: string;
+    protocol: string;
+    destination: string;
+    bytes: number;
+  }[];
+}
+
+export interface IPTrackerSearchParams {
+  name: string;
+  dateOfBirth: string;
+  city: string;
+  village: string;
+  country: string;
+  ipAddress?: string;
 }
