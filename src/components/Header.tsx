@@ -13,6 +13,9 @@ import {
   Server,
   RefreshCw,
   ListTodo,
+  Bot,
+  MessageSquareCode,
+  Award,
 } from 'lucide-react';
 import { soundFx } from '../lib/audio';
 
@@ -26,6 +29,9 @@ interface HeaderProps {
   onToggleLockdown: () => void;
   isLockdownActive: boolean;
   onOpenTasks?: () => void;
+  onToggleChatbot?: () => void;
+  isChatbotOpen?: boolean;
+  onOpenAssurance?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -38,6 +44,9 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleLockdown,
   isLockdownActive,
   onOpenTasks,
+  onToggleChatbot,
+  isChatbotOpen,
+  onOpenAssurance,
 }) => {
   const toggleAudio = () => {
     const nextMute = !isMuted;
@@ -68,17 +77,28 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-1.5 font-mono">
                 AEGIS <span className="text-cyan-400 font-extrabold">GOD'S EYE</span>
               </h1>
               <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-cyan-950/80 border border-cyan-700/60 text-cyan-300">
-                v3.2 SOVEREIGN
+                v2.4.0 (SemVer)
               </span>
               <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950/60 border border-emerald-700/50 text-emerald-300">
                 <Shield className="w-3 h-3 text-emerald-400" />
                 E2EE + DID
               </span>
+              {onOpenAssurance && (
+                <button
+                  type="button"
+                  onClick={onOpenAssurance}
+                  className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950/90 border border-emerald-500/60 text-emerald-300 hover:bg-emerald-900 transition-colors cursor-pointer"
+                  title="OpenSSF Best Practices Assurance: Silver Tier (100% Passing)"
+                >
+                  <Award className="w-3 h-3 text-emerald-400" />
+                  <span>OpenSSF Passing</span>
+                </button>
+              )}
             </div>
             <p className="text-[11px] text-slate-400 font-mono flex items-center gap-2">
               <span>Decentralized Identity & Real-Time Multi-Vector Supervision Matrix</span>
@@ -109,6 +129,40 @@ export const Header: React.FC<HeaderProps> = ({
             <Zap className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
             <span className="hidden sm:inline">Simulate</span> Breach
           </button>
+
+          {/* Google Tasks Shortcut */}
+          {onOpenTasks && (
+            <button
+              id="btn-header-tasks"
+              type="button"
+              onClick={onOpenTasks}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono font-semibold bg-slate-900/90 text-cyan-300 hover:bg-cyan-950/80 border border-cyan-800/80 hover:border-cyan-500 shadow-sm transition-all active:scale-95 cursor-pointer"
+              title="Open Google Tasks Tactical Directives"
+            >
+              <ListTodo className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden sm:inline">Tasks</span>
+            </button>
+          )}
+
+          {/* AI Security Assistant / Voice Bot Toggle */}
+          {onToggleChatbot && (
+            <button
+              id="btn-toggle-chatbot"
+              type="button"
+              onClick={onToggleChatbot}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono font-bold border transition-all active:scale-95 cursor-pointer ${
+                isChatbotOpen
+                  ? 'bg-purple-600 text-white border-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.5)]'
+                  : 'bg-slate-900/90 text-purple-300 border-purple-900/60 hover:bg-purple-950/70 hover:border-purple-500'
+              }`}
+              title="Open Tactical Security AI Chatbot with Voice Talkback"
+            >
+              <Bot className="w-3.5 h-3.5 text-purple-400" />
+              <span className="hidden sm:inline">AI ASSISTANT</span>
+              <span className="sm:hidden">AI</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            </button>
+          )}
 
           {/* Autonomous Lockdown Toggle */}
           <button

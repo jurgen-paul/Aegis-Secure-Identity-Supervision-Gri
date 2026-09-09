@@ -45,6 +45,9 @@ import { MerkleExplorer } from './components/AuditTrail/MerkleExplorer';
 import { GoogleDocsExportModal } from './components/AuditTrail/GoogleDocsExportModal';
 import { ContainmentControl } from './components/AlertProtocols/ContainmentControl';
 import { GeminiThreatAnalyzer } from './components/AIIntelligence/GeminiThreatAnalyzer';
+import { GoogleTasksManager } from './components/GoogleTasks/GoogleTasksManager';
+import { SecurityChatbot } from './components/SecurityBot/SecurityChatbot';
+import { OpenSSFAssurancePortal } from './components/OpenSSFCompliance/OpenSSFAssurancePortal';
 import { soundFx } from './lib/audio';
 import confetti from 'canvas-confetti';
 
@@ -52,6 +55,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('gods-eye');
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [isLockdownActive, setIsLockdownActive] = useState<boolean>(false);
+  const [isChatbotOpen, setIsChatbotOpen] = useState<boolean>(false);
+  const [pendingAlertForFeedback, setPendingAlertForFeedback] = useState<ActiveAlertLog | null>(null);
 
   // Core Sovereign & Supervision Data State
   const [subjects, setSubjects] = useState<TrackedSubject[]>(INITIAL_TRACKED_SUBJECTS);
@@ -241,6 +246,8 @@ export default function App() {
     };
 
     setActiveAlerts((prev) => [newAlert, ...prev]);
+    setPendingAlertForFeedback(newAlert);
+    setIsChatbotOpen(true);
 
     // Append to immutable Merkle Audit Trail
     const newBlock: MerkleAuditBlock = {
@@ -342,6 +349,10 @@ export default function App() {
         onSimulateBreach={handleSimulateBreach}
         onToggleLockdown={handleToggleLockdown}
         isLockdownActive={isLockdownActive}
+        onOpenTasks={() => setActiveTab('google-tasks')}
+        onToggleChatbot={() => setIsChatbotOpen(!isChatbotOpen)}
+        isChatbotOpen={isChatbotOpen}
+        onOpenAssurance={() => setActiveTab('security-assurance')}
       />
 
       {/* Navigation HUD */}
@@ -392,6 +403,10 @@ export default function App() {
               onResolveAlert={handleResolveAlert}
               onDispatchAlert={(sub, alt) => handleOpenDispatchModal(sub, alt)}
               onDispatchComplete={(packet, alt) => handleDispatchComplete(packet, alt)}
+              onRequestAlertFeedback={(alt) => {
+                setPendingAlertForFeedback(alt);
+                setIsChatbotOpen(true);
+              }}
             />
           </div>
         )}
@@ -484,6 +499,10 @@ export default function App() {
               isLockdownActive={isLockdownActive}
               onToggleLockdown={handleToggleLockdown}
               onSimulateBreach={handleSimulateBreach}
+              onRequestAlertFeedback={(alt) => {
+                setPendingAlertForFeedback(alt);
+                setIsChatbotOpen(true);
+              }}
             />
             <ActiveAlertsPanel
               alerts={activeAlerts}
@@ -492,6 +511,10 @@ export default function App() {
               onResolveAlert={handleResolveAlert}
               onDispatchAlert={(sub, alt) => handleOpenDispatchModal(sub, alt)}
               onDispatchComplete={(packet, alt) => handleDispatchComplete(packet, alt)}
+              onRequestAlertFeedback={(alt) => {
+                setPendingAlertForFeedback(alt);
+                setIsChatbotOpen(true);
+              }}
             />
           </div>
         )}
@@ -505,6 +528,28 @@ export default function App() {
               onSelectSubject={(sub) => setSelectedSubject(sub)}
               onOpenDocsExport={() => setIsDocsExportOpen(true)}
             />
+          </div>
+        )}
+
+        {/* VIEW 7: Google Tasks Tactical Directives Manager */}
+        {activeTab === 'google-tasks' && (
+          <div className="space-y-6 animate-fadeIn">
+            <GoogleTasksManager
+              subjects={subjects}
+              activeAlerts={activeAlerts}
+              onDispatchPolice={(sub, alt) => handleOpenDispatchModal(sub, alt)}
+              onFocusSubject={(sub) => {
+                setSelectedSubject(sub);
+                setActiveTab('gods-eye');
+              }}
+            />
+          </div>
+        )}
+
+        {/* VIEW 8: OpenSSF Security Assurance & Best Practices Portal */}
+        {activeTab === 'security-assurance' && (
+          <div className="space-y-6 animate-fadeIn">
+            <OpenSSFAssurancePortal />
           </div>
         )}
       </main>
@@ -555,6 +600,28 @@ export default function App() {
         subjects={subjects}
         blocks={merkleBlocks}
         alerts={activeAlerts}
+      />
+
+      {/* Security AI Chatbot with Voice Talkback & Alert Feedback */}
+      <SecurityChatbot
+        isOpen={isChatbotOpen}
+        onClose={() => setIsChatbotOpen(false)}
+        isLockdownActive={isLockdownActive}
+        onToggleLockdown={handleToggleLockdown}
+        subjects={subjects}
+        activeAlerts={activeAlerts}
+        onSelectSubject={(sub) => {
+          setSelectedSubject(sub);
+          setActiveTab('gods-eye');
+        }}
+        onOpenTasks={() => {
+          setActiveTab('google-tasks');
+        }}
+        onOpenCadDispatch={(sub, alt) => {
+          handleOpenDispatchModal(sub, alt);
+        }}
+        pendingAlertForFeedback={pendingAlertForFeedback}
+        onClearPendingAlertFeedback={() => setPendingAlertForFeedback(null)}
       />
     </div>
   );

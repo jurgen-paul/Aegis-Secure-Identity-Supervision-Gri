@@ -1,6 +1,6 @@
 import React from 'react';
 import { AutomatedAlertRule, ActiveAlertLog, TrackedSubject } from '../../types';
-import { ShieldAlert, AlertTriangle, Lock, Unlock, Radio, BellRing, CheckCircle, Zap } from 'lucide-react';
+import { ShieldAlert, AlertTriangle, Lock, Unlock, Radio, BellRing, CheckCircle, Zap, Bot, Volume2 } from 'lucide-react';
 import { soundFx } from '../../lib/audio';
 
 interface ContainmentControlProps {
@@ -10,6 +10,7 @@ interface ContainmentControlProps {
   isLockdownActive: boolean;
   onToggleLockdown: () => void;
   onSimulateBreach: () => void;
+  onRequestAlertFeedback?: (alert: ActiveAlertLog) => void;
 }
 
 export const ContainmentControl: React.FC<ContainmentControlProps> = ({
@@ -19,6 +20,7 @@ export const ContainmentControl: React.FC<ContainmentControlProps> = ({
   isLockdownActive,
   onToggleLockdown,
   onSimulateBreach,
+  onRequestAlertFeedback,
 }) => {
   return (
     <div className="space-y-6 font-mono">
@@ -65,6 +67,79 @@ export const ContainmentControl: React.FC<ContainmentControlProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Active Alerts with AI Feedback & Voice Talkback */}
+      {alerts.length > 0 && (
+        <div className="rounded-xl bg-slate-950 border border-amber-800/80 p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-400 animate-pulse" />
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                Live Active Threat Alerts ({alerts.length})
+              </h3>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-amber-950/80 border border-amber-700 text-amber-300">
+              TACTICAL AI MONITORING ARMED
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {alerts.map((al) => (
+              <div
+                key={al.id}
+                className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-amber-700/80 transition-all space-y-2 text-xs"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-100 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                    {al.title}
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-red-950 text-red-300 border border-red-800 font-bold">
+                    {al.severity}
+                  </span>
+                </div>
+
+                <div className="text-[11px] text-slate-400 space-y-0.5 font-mono">
+                  <p>Type: <span className="text-cyan-300">{al.type}</span></p>
+                  <p>Zone: <span className="text-slate-300">{al.locationDetails || 'Perimeter Sector'}</span></p>
+                  <p>Timestamp: <span className="text-slate-400">{al.timestamp}</span></p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                  {/* Ask AI for Feedback */}
+                  {onRequestAlertFeedback && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundFx.playClick();
+                        onRequestAlertFeedback(al);
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-purple-950/70 border border-purple-700 text-purple-300 hover:bg-purple-900 flex items-center gap-1.5 text-[11px] font-bold cursor-pointer transition-colors"
+                    >
+                      <Bot className="w-3.5 h-3.5 text-purple-400" />
+                      <span>Ask AI for Feedback</span>
+                    </button>
+                  )}
+
+                  {/* Voice Broadcast Alert */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      soundFx.playAlarm();
+                      soundFx.speakVoice(`Security Alert: ${al.title}. Severity: ${al.severity}. Location: ${al.locationDetails || 'Perimeter Sector'}. Immediate containment required.`);
+                    }}
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-300 hover:text-cyan-300 hover:border-cyan-600 flex items-center gap-1.5 text-[11px] cursor-pointer transition-colors"
+                    title="Broadcast Alert Audio Over Radio"
+                  >
+                    <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Voice Announce</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Rules Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

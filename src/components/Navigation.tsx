@@ -9,9 +9,10 @@ import {
   Flame,
   Network,
   ListTodo,
+  Award,
 } from 'lucide-react';
 
-export type ActiveTab = 'gods-eye' | 'ip-tracker' | 'most-wanted' | 'did-vault' | 'e2ee-mesh' | 'audit-dag' | 'containment' | 'ai-intel' | 'google-tasks';
+export type ActiveTab = 'gods-eye' | 'ip-tracker' | 'most-wanted' | 'did-vault' | 'e2ee-mesh' | 'audit-dag' | 'containment' | 'ai-intel' | 'google-tasks' | 'security-assurance';
 
 interface NavigationProps {
   activeTab: ActiveTab;
@@ -92,6 +93,14 @@ export const Navigation: React.FC<NavigationProps> = ({
       subLabel: 'Tactical Directives',
       icon: ListTodo,
       badge: 'Tasks API',
+    },
+    {
+      id: 'security-assurance' as ActiveTab,
+      label: 'OpenSSF Assurance',
+      subLabel: 'FLOSS • Tests • SAST/DAST',
+      icon: Award,
+      badge: 'Silver Badge',
+      highlight: true,
     },
   ];
 

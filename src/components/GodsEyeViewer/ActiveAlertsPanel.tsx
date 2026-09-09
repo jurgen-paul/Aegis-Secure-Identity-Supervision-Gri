@@ -22,6 +22,7 @@ import {
   Filter,
   SlidersHorizontal,
   AlertCircle,
+  Bot,
 } from 'lucide-react';
 import { soundFx } from '../../lib/audio';
 import { POLICE_STATIONS } from '../../lib/mockData';
@@ -40,6 +41,7 @@ interface ActiveAlertsPanelProps {
   onResolveAlert: (alertId: string) => void;
   onDispatchAlert?: (subject: TrackedSubject, alert: ActiveAlertLog) => void;
   onDispatchComplete?: (packet: ThreatDispatchPacket, alert: ActiveAlertLog) => void;
+  onRequestAlertFeedback?: (alert: ActiveAlertLog) => void;
 }
 
 interface DispatchSimulationState {
@@ -57,6 +59,7 @@ export const ActiveAlertsPanel: React.FC<ActiveAlertsPanelProps> = ({
   onResolveAlert,
   onDispatchAlert,
   onDispatchComplete,
+  onRequestAlertFeedback,
 }) => {
   const unresolvedAlerts = alerts.filter((a) => !a.isResolved);
   const [activeSimulations, setActiveSimulations] = useState<Record<string, DispatchSimulationState>>({});
@@ -492,6 +495,21 @@ export const ActiveAlertsPanel: React.FC<ActiveAlertsPanelProps> = ({
                       >
                         <Radio className="w-3.5 h-3.5 text-purple-400" />
                         <span>CAD Console</span>
+                      </button>
+                    )}
+
+                    {/* Ask AI for Feedback */}
+                    {onRequestAlertFeedback && (
+                      <button
+                        onClick={() => {
+                          soundFx.playClick();
+                          onRequestAlertFeedback(alt);
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-purple-950/80 border border-purple-700 text-purple-300 hover:bg-purple-900 hover:text-white transition-colors text-[11px] font-semibold cursor-pointer flex items-center justify-center gap-1.5"
+                        title="Get AI Sentinel feedback & voice triage on this alert"
+                      >
+                        <Bot className="w-3.5 h-3.5 text-purple-400" />
+                        <span>AI Feedback</span>
                       </button>
                     )}
 

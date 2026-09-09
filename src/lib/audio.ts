@@ -103,6 +103,78 @@ class TacticalSoundEngine {
     osc.stop(now + 0.35);
   }
 
+  // Tactical Alert chime
+  public playAlert() {
+    this.playAlarm();
+  }
+
+  // Intelligent Voice Talkback (Web Speech API)
+  public speakVoice(
+    text: string,
+    options?: {
+      rate?: number;
+      pitch?: number;
+      volume?: number;
+      onEnd?: () => void;
+    }
+  ) {
+    if (this.isMuted) return;
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
+    try {
+      window.speechSynthesis.cancel(); // Stop any pending utterances
+      const cleanText = text
+        .replace(/\[.*?\]/g, '') // remove bracketed tags like [CRITICAL]
+        .replace(/[#*_`]/g, '') // remove markdown symbols
+        .trim();
+
+      if (!cleanText) return;
+
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = options?.rate ?? 1.05; // Crisp tactical delivery
+      utterance.pitch = options?.pitch ?? 0.95; // Calm authoritative pitch
+      utterance.volume = options?.volume ?? 0.9;
+
+      // Select preferred tactical voice (English, deep/neutral)
+      const voices = window.speechSynthesis.getVoices();
+      const preferred = voices.find(
+        (v) =>
+          v.lang.startsWith('en') &&
+          (v.name.includes('Google') ||
+            v.name.includes('Natural') ||
+            v.name.includes('Daniel') ||
+            v.name.includes('Samantha') ||
+            v.name.includes('Alex'))
+      ) || voices.find((v) => v.lang.startsWith('en')) || voices[0];
+
+      if (preferred) {
+        utterance.voice = preferred;
+      }
+
+      if (options?.onEnd) {
+        utterance.onend = options.onEnd;
+        utterance.onerror = options.onEnd;
+      }
+
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.warn('Speech synthesis failed:', err);
+    }
+  }
+
+  public stopSpeaking() {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+  }
+
+  public isVoiceSpeaking(): boolean {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      return window.speechSynthesis.speaking;
+    }
+    return false;
+  }
+
   // Cryptographic Decryption Success Chime
   public playDecrypt() {
     if (this.isMuted) return;
